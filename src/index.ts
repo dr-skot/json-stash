@@ -1,7 +1,3 @@
-//
-// exports
-//
-
 import { isObject, isPlainObject, setPath } from "./utils";
 import { getRefSaver, isRef, RefSaver, resolveRef } from "./ref";
 import { deserialize, isDeserializable, serialize } from "./serialize";
