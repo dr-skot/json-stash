@@ -8,7 +8,7 @@ export function toJSON(raw: unknown) {
 
 export function fromJSON(json: string) {
   const result = JSON.parse(json);
-  // these changes have to be made in place to preserve duplicate references
+  // these changes have to be made in-place to preserve duplicate references
   refsToCircular(result);
   return result;
 }
@@ -30,13 +30,14 @@ type RefSaver = (path: string, value: unknown) => unknown;
 
 function getRefSaver(): RefSaver {
   const seen: Record<string, object> = {};
-  return (path, value) => {
+  function refSaver(path: string, value: unknown) {
     if (value === null || typeof value !== "object") return value;
     const found = Object.entries(seen).find(([, v]) => v === value);
     if (found) return { _refId: found[0] };
     seen[path] = value;
     return value;
-  };
+  }
+  return refSaver;
 }
 
 function circularToRefs(raw: unknown) {
@@ -55,7 +56,7 @@ function valueToRefs(
     return (value as unknown[]).map((v, i) =>
       valueToRefs(v, `${path}.${i}`, refSaver)
     );
-  if (isObject(value))
+  else if (isPlainObject(value))
     return Object.fromEntries(
       Object.entries(value as object).map(([k, v]) => [
         k,
@@ -93,7 +94,7 @@ function valueToCircular(
     );
     return;
   }
-  if (isObject(rawValue)) {
+  if (isPlainObject(rawValue)) {
     Object.entries(rawValue).forEach(([k, v]) =>
       valueToCircular(v, `${path}.${k}`, context)
     );
@@ -146,14 +147,13 @@ function customDeserialize(value: SpecialSerialized) {
     case "Date":
       return new Date(data as number);
     default:
-      throw new Error(`Unknown special type ${_stashType}`);
+      console.warn('Unknown special type "' + _stashType + '"');
+      return value;
   }
 }
 
 function customSerializeValue(value: unknown) {
-  console.log("customSerializeValue", value);
   if (value instanceof Date) {
-    console.log("is date");
     return {
       _stashType: "Date",
       data: value.getTime(),
@@ -189,3 +189,5 @@ function set<T extends object>(obj: T, pathString: string, value: any): T {
 function isObject(value: any): value is object {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+
+const isPlainObject = (value: unknown) => value?.constructor === Object;
