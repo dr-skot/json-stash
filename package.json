@@ -26,7 +26,6 @@
     "typescript": "5.0.2"
   },
   "dependencies": {
-    "json-stash": "file:",
-    "lodash": "4.17.21"
+    "json-stash": "file:"
   }
 }

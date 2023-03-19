@@ -45,4 +45,13 @@ describe("toJSON", () => {
     expect(deserialized2).toEqual(obj2);
     expect(deserialized2.b[2]).toBe(deserialized2.b[2].self);
   });
+
+  it("serializes Date objects", () => {
+    const data = { date: new Date() };
+    const serialized = toJSON(data);
+    const deserialized = fromJSON(serialized);
+    expect(serialized).toEqual(
+      `{"date":{"_stashType":"Date","data":${data.date.getTime()}}}`
+    );
+  });
 });
