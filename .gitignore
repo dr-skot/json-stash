@@ -1,6 +1,10 @@
+# dependencies
+node_modules
+
+# build
+dist
+
 # jetbrains
 .idea
 
-# node
-node_modules
 

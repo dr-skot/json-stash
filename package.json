@@ -4,19 +4,24 @@
   "description": "serialize and deserialize javscript objects to json",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "test": "jest"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dr-skot/json-stash.git"
   },
-  "author": "skot@pobox.com",
+  "author": "https://github.com/dr-skot",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/dr-skot/json-stash/issues"
   },
   "homepage": "https://github.com/dr-skot/json-stash#readme",
   "devDependencies": {
+    "@types/jest": "29.5.0",
+    "jest": "29.5.0",
+    "prettier": "2.8.4",
+    "ts-jest": "29.0.5",
     "typescript": "5.0.2"
   }
 }
