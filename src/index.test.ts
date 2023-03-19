@@ -50,8 +50,28 @@ describe("toJSON", () => {
     const data = { date: new Date() };
     const serialized = toJSON(data);
     const deserialized = fromJSON(serialized);
-    expect(serialized).toEqual(
-      `{"date":{"_stashType":"Date","data":${data.date.getTime()}}}`
-    );
+    expect(deserialized.date).toBeInstanceOf(Date);
+    expect(deserialized).toEqual(data);
+  });
+
+  it("serializes RegExp objects", () => {
+    const data = { regex: /foo/gi };
+    const serialized = toJSON(data);
+    const deserialized = fromJSON(serialized);
+    expect(deserialized.regex).toBeInstanceOf(RegExp);
+    expect(deserialized).toEqual(data);
+  });
+
+  it("serializes Map objects", () => {
+    const data = {
+      map: new Map([
+        ["a", 1],
+        ["b", 2],
+      ]),
+    };
+    const serialized = toJSON(data);
+    const deserialized = fromJSON(serialized);
+    expect(deserialized.map).toBeInstanceOf(Map);
+    expect(deserialized).toEqual(data);
   });
 });
