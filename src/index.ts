@@ -2,6 +2,14 @@
 // exports
 //
 
+import { getPath, isObject, isPlainObject, setPath } from "./utils";
+import {
+  customDeserialize,
+  customSerialize,
+  isSpecial,
+  SpecialSerialized,
+} from "./serializers";
+
 export function toJSON(raw: unknown) {
   return JSON.stringify(customSerialize(circularToRefs(raw)));
 }
@@ -56,7 +64,7 @@ function valueToRefs(
     return (value as unknown[]).map((v, i) =>
       valueToRefs(v, `${path}.${i}`, refSaver)
     );
-  else if (isPlainObject(value))
+  if (isPlainObject(value))
     return Object.fromEntries(
       Object.entries(value as object).map(([k, v]) => [
         k,
@@ -101,93 +109,3 @@ function valueToCircular(
     return;
   }
 }
-
-function getPath(context: object, rawPath: string) {
-  const path = rawPath.replace(/^\$\.?/, "");
-  return path ? get(context, path) : context;
-}
-
-function setPath(context: object, rawPath: string, value: unknown) {
-  const path = rawPath.replace(/^\$\.?/, "");
-  if (!path) throw new Error("Cannot set root path");
-  return set(context, path, value);
-}
-
-function customSerialize(value: unknown) {
-  return recursivelyApply(customSerializeValue)(value);
-}
-
-function recursivelyApply(fn: (v: unknown) => any) {
-  return (value: any) => {
-    if (Array.isArray(value)) {
-      return (value as unknown[]).map(fn);
-    }
-    if (isObject(value)) {
-      return Object.fromEntries(
-        Object.entries(value as object).map(([k, v]) => [k, fn(v)])
-      );
-    }
-    return value;
-  };
-}
-
-type SpecialSerialized = {
-  _stashType: string;
-  data: unknown;
-};
-
-function isSpecial(value: unknown) {
-  const { _stashType } = value as SpecialSerialized;
-  return !!_stashType;
-}
-
-function customDeserialize(value: SpecialSerialized) {
-  const { _stashType, data } = value;
-  switch (_stashType) {
-    case "Date":
-      return new Date(data as number);
-    default:
-      console.warn('Unknown special type "' + _stashType + '"');
-      return value;
-  }
-}
-
-function customSerializeValue(value: unknown) {
-  if (value instanceof Date) {
-    return {
-      _stashType: "Date",
-      data: value.getTime(),
-    };
-  }
-  return value;
-}
-
-// equivalent to lodash's _.get
-function get(obj: any, path: string): any {
-  if (!path) return obj; // If the path is empty, return the object
-  const keys = path.split("."); // Split the path by dot
-  let result: any = obj;
-  for (const key of keys) {
-    if (Object(result) !== result) return undefined; // If the result is not a valid object, return undefined
-    result = result[key]; // Get the value of the current key
-  }
-  return result;
-}
-
-// equivalent to lodash's _.set
-function set<T extends object>(obj: T, pathString: string, value: any): T {
-  if (Object(obj) !== obj) return obj; // If the object is not a valid object, return it
-  const path = pathString.split("."); // Convert the path to an array if it's not already one
-  path.reduce((acc: any, key: string | number, index: number) => {
-    if (Object(acc[key]) !== acc[key]) acc[key] = {}; // If the key doesn't exist, create a new object
-    if (index === path.length - 1) acc[key] = value; // If it's the last key, set the value
-    return acc[key]; // Return the nested object
-  }, obj);
-  return obj;
-}
-
-function isObject(value: any): value is object {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-const isPlainObject = (value: unknown) => value?.constructor === Object;
