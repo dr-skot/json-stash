@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/dr-skot/json-stash/issues"
   },
-  "homepage": "https://github.com/dr-skot/json-stash#readme"
+  "homepage": "https://github.com/dr-skot/json-stash#readme",
+  "devDependencies": {
+    "typescript": "5.0.2"
+  }
 }
