@@ -2,13 +2,9 @@
 // exports
 //
 
-import { getPath, isObject, isPlainObject, setPath } from "./utils";
-import {
-  customDeserialize,
-  customSerialize,
-  isSpecial,
-  SpecialSerialized,
-} from "./serializers";
+import { isObject, isPlainObject, setPath } from "./utils";
+import { customDeserialize, customSerialize, isSpecial } from "./serializers";
+import { getRefSaver, isRef, Ref, RefSaver, resolveRef } from "./ref";
 
 export function toJSON(raw: unknown) {
   return JSON.stringify(customSerialize(circularToRefs(raw)));
@@ -24,29 +20,6 @@ export function fromJSON(json: string) {
 //
 // internals
 //
-
-// a ref is a placeholder for a value that has already been seen
-// the _refId is a path to the value in some reference object
-type Ref = {
-  _refId: string;
-};
-
-// a function that tracks values and returns a ref when a value is repeated
-// (if the value is an object or an array)
-// otherwise returns the value
-type RefSaver = (path: string, value: unknown) => unknown;
-
-function getRefSaver(): RefSaver {
-  const seen: Record<string, object> = {};
-  function refSaver(path: string, value: unknown) {
-    if (value === null || typeof value !== "object") return value;
-    const found = Object.entries(seen).find(([, v]) => v === value);
-    if (found) return { _refId: found[0] };
-    seen[path] = value;
-    return value;
-  }
-  return refSaver;
-}
 
 function circularToRefs(raw: unknown) {
   return valueToRefs(raw, "$", getRefSaver());
@@ -85,14 +58,13 @@ function valueToCircular(
   context: object
 ): unknown {
   if (rawValue === null || typeof rawValue !== "object") return;
-  const { _refId } = rawValue as Ref;
-  if (_refId) {
-    const referent = getPath(context, _refId);
+  if (isRef(rawValue)) {
+    const referent = resolveRef(context, rawValue);
     setPath(context, path, referent);
     return;
   }
   if (isSpecial(rawValue)) {
-    const special = customDeserialize(rawValue as SpecialSerialized);
+    const special = customDeserialize(rawValue);
     setPath(context, path, special);
     return;
   }

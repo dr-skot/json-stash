@@ -1,13 +1,12 @@
-import { recursivelyApply } from "./utils";
+import { isObject, recursivelyApply } from "./utils";
 
 export type SpecialSerialized = {
   _stashType: string;
   data: unknown;
 };
 
-export function isSpecial(value: unknown) {
-  const { _stashType } = value as SpecialSerialized;
-  return !!_stashType;
+export function isSpecial(value: unknown): value is SpecialSerialized {
+  return isObject(value) && "_stashType" in value;
 }
 
 export function customSerialize(value: unknown) {

@@ -30,7 +30,7 @@ describe("toJSON", () => {
     const obj: { self?: unknown; num: number } = { num: 2 };
     obj.self = obj;
     const serialized = toJSON(obj);
-    expect(serialized).toEqual('{"num":2,"self":{"_refId":"$"}}');
+    expect(serialized).toEqual('{"num":2,"self":{"_stashRef":"$"}}');
     const deserialized = fromJSON(serialized);
     expect(deserialized).toEqual(obj);
     expect(deserialized.self).toBe(deserialized);
@@ -39,7 +39,7 @@ describe("toJSON", () => {
     const obj2 = { a: 1, b: [4, 5, obj], c: undefined };
     const serialized2 = toJSON(obj2);
     expect(serialized2).toEqual(
-      '{"a":1,"b":[4,5,{"num":2,"self":{"_refId":"$.b.2"}}]}'
+      '{"a":1,"b":[4,5,{"num":2,"self":{"_stashRef":"$.b.2"}}]}'
     );
     const deserialized2 = fromJSON(serialized2);
     expect(deserialized2).toEqual(obj2);
