@@ -3,17 +3,17 @@
 //
 
 import { isObject, isPlainObject, setPath } from "./utils";
-import { customDeserialize, customSerialize, isSpecial } from "./serializers";
-import { getRefSaver, isRef, Ref, RefSaver, resolveRef } from "./ref";
+import { getRefSaver, isRef, RefSaver, resolveRef } from "./ref";
+import { deserialize, isDeserializable, serialize } from "./serialize";
 
 export function toJSON(raw: unknown) {
-  return JSON.stringify(customSerialize(circularToRefs(raw)));
+  return JSON.stringify(serialize(circularToRefs(raw)));
 }
 
 export function fromJSON(json: string) {
   const result = JSON.parse(json);
-  // these changes have to be made in-place to preserve duplicate references
-  refsToCircular(result);
+  // resolve all refs and deserialize special types
+  resolve(result);
   return result;
 }
 
@@ -47,15 +47,15 @@ function valueToRefs(
   return value;
 }
 
-function refsToCircular(value: unknown) {
-  if (!isObject(value)) return;
-  valueToCircular(value, "$", value as object);
+function resolve(value: unknown) {
+  if (value === null || typeof value !== "object") return;
+  recursivelyResolve(value, "$", value);
 }
 
-function valueToCircular(
+function recursivelyResolve(
   rawValue: unknown,
   path: string,
-  context: object
+  context: object | Array<unknown>
 ): unknown {
   if (rawValue === null || typeof rawValue !== "object") return;
   if (isRef(rawValue)) {
@@ -63,20 +63,20 @@ function valueToCircular(
     setPath(context, path, referent);
     return;
   }
-  if (isSpecial(rawValue)) {
-    const special = customDeserialize(rawValue);
+  if (isDeserializable(rawValue)) {
+    const special = deserialize(rawValue);
     setPath(context, path, special);
     return;
   }
   if (Array.isArray(rawValue)) {
     (rawValue as unknown[]).forEach((v, i) =>
-      valueToCircular(v, `${path}.${i}`, context)
+      recursivelyResolve(v, `${path}.${i}`, context)
     );
     return;
   }
   if (isPlainObject(rawValue)) {
     Object.entries(rawValue).forEach(([k, v]) =>
-      valueToCircular(v, `${path}.${k}`, context)
+      recursivelyResolve(v, `${path}.${k}`, context)
     );
     return;
   }

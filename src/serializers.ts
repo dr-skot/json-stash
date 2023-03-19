@@ -1,46 +1,11 @@
-import { isObject, recursivelyApply } from "./utils";
-
-export type SpecialSerialized = {
-  _stashType: string;
-  data: unknown;
-};
-
-export function isSpecial(value: unknown): value is SpecialSerialized {
-  return isObject(value) && "_stashType" in value;
-}
-
-export function customSerialize(value: unknown) {
-  return recursivelyApply(customSerializeValue)(value);
-}
-export function customDeserialize(value: SpecialSerialized) {
-  for (const serializer of DEFAULT_SERIALIZERS) {
-    if (value._stashType === serializer.key) {
-      return serializer.load(value.data as any);
-    }
-  }
-  return value;
-}
-
-export function customSerializeValue(value: unknown) {
-  for (const serializer of DEFAULT_SERIALIZERS) {
-    if (value instanceof serializer.type) {
-      return {
-        _stashType: serializer.key,
-        data: serializer.save(value),
-      };
-    }
-  }
-  return value;
-}
-
-type Serializer = {
+export type Serializer = {
   type: any;
   key: string;
   save: (value: any) => any;
   load: (value: any) => any;
 };
 
-const DEFAULT_SERIALIZERS = [
+export const DEFAULT_SERIALIZERS = [
   {
     type: Date,
     key: "Date",

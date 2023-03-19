@@ -74,4 +74,25 @@ describe("toJSON", () => {
     expect(deserialized.map).toBeInstanceOf(Map);
     expect(deserialized).toEqual(data);
   });
+
+  it("works if outer object is an array", () => {
+    const a = [1, 2, 3];
+    const data = [1, 2, a, new Date()];
+    const serialized = toJSON(data);
+    const deserialized = fromJSON(serialized);
+    expect(deserialized).toEqual(data);
+  });
+
+  /* TODO make this work
+  it("works if outer object is a Map", () => {
+    const data = new Map([
+      ["a", 1],
+      ["b", 2],
+    ]);
+    const serialized = toJSON(data);
+    const deserialized = fromJSON(serialized);
+    expect(deserialized).toBeInstanceOf(Map);
+    expect(deserialized).toEqual(data);
+  });
+   */
 });
