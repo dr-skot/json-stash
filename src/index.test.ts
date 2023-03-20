@@ -11,8 +11,7 @@ describe("toJSON", () => {
       false,
     ];
     inputs.forEach((input) => {
-      // TODO satisfy this requirement
-      // expect(toJSON(input)).toEqual(JSON.stringify(input));
+      expect(toJSON(input)).toEqual(JSON.stringify(input));
       expect(fromJSON(toJSON(input))).toEqual(input);
     });
   });

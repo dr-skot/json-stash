@@ -1,6 +1,6 @@
 // a ref is a placeholder for a value that has already been seen
 // the _stashRef is a path to the value in some reference object
-import { getPath, isObject } from "./utils";
+import { isPlainObject } from "./utils";
 
 export type Ref = {
   _stashRef: string;
@@ -25,9 +25,5 @@ export function getRefSaver(): RefSaver {
 }
 
 export function isRef(value: unknown): value is Ref {
-  return isObject(value) && "_stashRef" in value;
-}
-
-export function resolveRef(context: object, ref: Ref) {
-  return getPath(context, ref._stashRef);
+  return isPlainObject(value) && "_stashRef" in value;
 }

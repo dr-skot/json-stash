@@ -1,4 +1,4 @@
-import { isObject, recursivelyApply } from "./utils";
+import { isPlainObject } from "./utils";
 import { DEFAULT_SERIALIZERS } from "./serializers";
 
 export type Deserializable = {
@@ -7,11 +7,19 @@ export type Deserializable = {
 };
 
 export function isDeserializable(value: unknown): value is Deserializable {
-  return isObject(value) && "_stashType" in value;
+  return isPlainObject(value) && "_stashType" in value;
 }
 
 export function serialize(value: unknown) {
-  return recursivelyApply(serializeValue)(value);
+  for (const serializer of DEFAULT_SERIALIZERS) {
+    if (value instanceof serializer.type) {
+      return {
+        _stashType: serializer.key,
+        data: serializer.save(value),
+      };
+    }
+  }
+  return value;
 }
 
 export function deserialize(value: Deserializable) {
@@ -30,17 +38,5 @@ export function dereference(
 ) {
   const serializer = DEFAULT_SERIALIZERS.find((s) => s.key === type);
   serializer?.deRef?.(value, deRef);
-  return value;
-}
-
-export function serializeValue(value: unknown) {
-  for (const serializer of DEFAULT_SERIALIZERS) {
-    if (value instanceof serializer.type) {
-      return {
-        _stashType: serializer.key,
-        data: serializer.save(value),
-      };
-    }
-  }
   return value;
 }
