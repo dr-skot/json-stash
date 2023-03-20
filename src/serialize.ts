@@ -23,6 +23,16 @@ export function deserialize(value: Deserializable) {
   return value;
 }
 
+export function dereference(
+  type: string,
+  value: unknown,
+  deRef: (value: unknown) => unknown
+) {
+  const serializer = DEFAULT_SERIALIZERS.find((s) => s.key === type);
+  serializer?.deRef?.(value, deRef);
+  return value;
+}
+
 export function serializeValue(value: unknown) {
   for (const serializer of DEFAULT_SERIALIZERS) {
     if (value instanceof serializer.type) {

@@ -1,79 +1,106 @@
-import { isObject, isPlainObject, setPath } from "./utils";
-import { getRefSaver, isRef, RefSaver, resolveRef } from "./ref";
-import { deserialize, isDeserializable, serialize } from "./serialize";
+import {
+  deepForEach,
+  depthFirstForEach,
+  depthFirstMap,
+  depthFirstMapInPlace,
+  hasOwnProperty,
+  isArray,
+  isPlainObject,
+  mapValues,
+} from "./utils";
+import { getRefSaver, isRef, Ref, RefSaver } from "./ref";
+import {
+  dereference,
+  deserialize,
+  isDeserializable,
+  serializeValue,
+} from "./serialize";
 
 export function toJSON(raw: unknown) {
-  return JSON.stringify(serialize(circularToRefs(raw)));
+  const stash = encode({ _stashRoot: raw });
+  return JSON.stringify((stash as { _stashRoot: unknown })._stashRoot);
 }
 
 export function fromJSON(json: string) {
-  const result = JSON.parse(json);
+  const result = { _stashRoot: JSON.parse(json) };
   // resolve all refs and deserialize special types
-  resolve(result);
-  return result;
+  const resolved: any = resolve(result);
+  return resolved._stashRoot;
 }
 
 //
 // internals
 //
 
-function circularToRefs(raw: unknown) {
-  return valueToRefs(raw, "$", getRefSaver());
+function encode(raw: unknown) {
+  return recursivelyEncode(raw, "$", getRefSaver());
 }
 
-function valueToRefs(
+function recursivelyEncode(
   rawValue: unknown,
   path: string,
   refSaver: RefSaver
 ): unknown {
-  const value = refSaver(path, rawValue);
+  let value = refSaver(path, rawValue);
   // if value is not raw, we have a ref, so return it
   if (value !== rawValue) return value;
-  if (Array.isArray(value))
-    return (value as unknown[]).map((v, i) =>
-      valueToRefs(v, `${path}.${i}`, refSaver)
-    );
+  value = serializeValue(value);
+  if (isArray(value))
+    return value.map((v, i) => recursivelyEncode(v, `${path}.${i}`, refSaver));
   if (isPlainObject(value))
-    return Object.fromEntries(
-      Object.entries(value as object).map(([k, v]) => [
-        k,
-        valueToRefs(v, `${path}.${k}`, refSaver),
-      ])
+    return mapValues(value, (v, k) =>
+      recursivelyEncode(v, `${path}.${k}`, refSaver)
     );
   return value;
 }
 
 function resolve(value: unknown) {
-  if (value === null || typeof value !== "object") return;
-  recursivelyResolve(value, "$", value);
+  if (value === null || typeof value !== "object") return value;
+
+  // collect all the ref paths in the object
+  const refs: Record<string, unknown> = {};
+  deepForEach((v) => {
+    const path = (v as Ref)?._stashRef;
+    if (path) refs[path] = null;
+  })(value);
+
+  // we'll put the reffed objects in this table
+  function recordIfHasRefs(value: unknown, path: string) {
+    if (hasOwnProperty(refs, path)) refs[path] = value;
+    return value;
+  }
+
+  // and this is how we'll resolve refs when the time comes
+  const deRef = depthFirstMapInPlace((v) => {
+    if (isRef(v)) return refs[v._stashRef];
+    else return v;
+  });
+
+  // first pass: deserialize special types, note which ones need dereferencing
+  const specialTypesToDeref: any[] = [];
+  value = depthFirstMap((v, path) => {
+    if (isRef(v)) return v;
+    if (isDeserializable(v)) {
+      const deserialized = recordIfHasRefs(deserialize(v), path);
+      if (hasRefs(v.data)) specialTypesToDeref.push([v, deserialized]);
+      return recordIfHasRefs(deserialized, path);
+    }
+    return recordIfHasRefs(v, path);
+  })(value);
+
+  // second pass: resolve refs
+  deRef(value);
+  specialTypesToDeref.forEach(([v, deserialized]) => {
+    dereference(v._stashType, deserialized, deRef);
+  });
+
+  return value;
 }
 
-function recursivelyResolve(
-  rawValue: unknown,
-  path: string,
-  context: object | Array<unknown>
-): unknown {
-  if (rawValue === null || typeof rawValue !== "object") return;
-  if (isRef(rawValue)) {
-    const referent = resolveRef(context, rawValue);
-    setPath(context, path, referent);
-    return;
-  }
-  if (isDeserializable(rawValue)) {
-    const special = deserialize(rawValue);
-    setPath(context, path, special);
-    return;
-  }
-  if (Array.isArray(rawValue)) {
-    (rawValue as unknown[]).forEach((v, i) =>
-      recursivelyResolve(v, `${path}.${i}`, context)
-    );
-    return;
-  }
-  if (isPlainObject(rawValue)) {
-    Object.entries(rawValue).forEach(([k, v]) =>
-      recursivelyResolve(v, `${path}.${k}`, context)
-    );
-    return;
-  }
+function hasRefs(value: unknown) {
+  let result = false;
+  depthFirstForEach((v) => {
+    if (isRef(v)) result = true;
+  })(value);
+  return result;
 }
