@@ -7,41 +7,36 @@ import {
   serialize,
 } from "./serialize";
 
-type StashBox = {
-  _stashRoot: any;
+type StashRoot = {
+  $: any;
 };
 
 export function toJSON(raw: unknown) {
-  const stash = encode({ _stashRoot: raw });
-  return JSON.stringify((stash as StashBox)._stashRoot);
+  const stash = encode({ $: raw });
+  return JSON.stringify(stash.$);
 }
 
 export function fromJSON(json: string) {
-  const result = { _stashRoot: JSON.parse(json) };
-  // resolve all refs and deserialize special types
-  const resolved = resolve(result);
-  return (resolved as StashBox)._stashRoot;
+  const stash = { $: JSON.parse(json) };
+  return decode(stash).$;
 }
 
 //
 // internals
 //
 
-function encode(raw: StashBox) {
+function encode(raw: StashRoot): StashRoot {
   const refSaver = getRefSaver();
   function encodeValue(rawValue: unknown, path: string) {
     const value = refSaver(path, rawValue);
     return isRef(value) ? value : serialize(value);
   }
   const opts = { depthFirst: false, inPlace: false };
-  return deepMap(encodeValue, opts)(raw);
+  return deepMap(encodeValue, opts)(raw) as StashRoot;
 }
 
-function resolve(value: unknown) {
-  if (value === null || typeof value !== "object") return value;
-
+function decode(value: StashRoot): StashRoot {
   // TODO move some of this ref logic to ref.ts
-
   // we'll put the reffed objects in this table
   const refs: Record<string, unknown> = {};
 
@@ -79,7 +74,7 @@ function resolve(value: unknown) {
       return recordIfHasRefs(v, path);
     },
     { depthFirst: true, inPlace: false }
-  )(value);
+  )(value) as StashRoot;
 
   // second pass: resolve refs
   deRef(value);

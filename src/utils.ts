@@ -25,7 +25,7 @@ export function deepMap(
     if (Array.isArray(node)) {
       const array = opts.inPlace ? node : [...node];
       for (let i = 0; i < array.length; i++) {
-        array[i] = recurse(array[i], `${path}.${i}`);
+        array[i] = recurse(array[i], appendPath(path, i));
       }
       node = array;
     }
@@ -34,7 +34,7 @@ export function deepMap(
       for (const k in obj) {
         // @ts-ignore - ts, man, I just don't get you sometimes
         //    `obj[k]` isn't allowed inside `for (k in obj)`??
-        obj[k] = recurse(obj[k], `${path}.${k}`);
+        obj[k] = recurse(obj[k], appendPath(path, k));
       }
       node = obj;
     }
@@ -42,9 +42,13 @@ export function deepMap(
     return node;
   }
 
-  return (value: unknown) => recurse(value, "$");
+  return (value: unknown) => recurse(value, "");
 }
 
 export function hasOwnProperty(obj: object, key: string) {
   return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function appendPath(path: string, key: string | number) {
+  return path ? `${path}.${key}` : `${key}`;
 }
