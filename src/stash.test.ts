@@ -1,5 +1,5 @@
-import { fromJSON, toJSON } from "./index";
-describe("toJSON", () => {
+import { fromJSON, toJSON } from "./stash";
+describe("stash", () => {
   it("handles ordinary objects", () => {
     const inputs = [
       null,
