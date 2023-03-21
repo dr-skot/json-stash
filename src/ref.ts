@@ -1,8 +1,8 @@
-// a ref is a placeholder for a value that has already been seen
-// the _stashRef is a path to the value in some reference object
 import { deepForEach, deepMap, hasOwnProperty, isPlainObject } from "./utils";
 import { Stash } from "./stash";
 
+// a ref is a placeholder for a value that has already been seen
+// the _stashRef is a path to the value in some reference object
 export type Ref = {
   _stashRef: string;
 };

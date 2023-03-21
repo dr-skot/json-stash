@@ -1,9 +1,11 @@
+export type DerefFunction = (value: unknown) => unknown;
+
 export type Serializer = {
   type: any;
   key: string;
   save: (value: any) => any;
   load?: (value: any) => any;
-  deRef?: (value: any, deref: (value: unknown) => unknown) => void;
+  deref?: (value: any, deref: DerefFunction) => void;
 };
 
 export const DEFAULT_SERIALIZERS = [
@@ -21,20 +23,17 @@ export const DEFAULT_SERIALIZERS = [
     type: Map,
     key: "Map",
     save: (value: Map<unknown, unknown>) => [[...value]],
-    deRef: derefMap,
+    deref: derefMap,
   },
   {
     type: Set,
     key: "Set",
     save: (value: Set<unknown>) => [[...value]],
-    deRef: derefSet,
+    deref: derefSet,
   },
 ] as Serializer[];
 
-function derefMap(
-  obj: Map<unknown, unknown>,
-  deref: (value: unknown) => unknown
-) {
+function derefMap(obj: Map<unknown, unknown>, deref: DerefFunction) {
   for (const [key, value] of obj) {
     const newKey = deref(key);
     const newValue = deref(value);
@@ -43,7 +42,7 @@ function derefMap(
   }
 }
 
-function derefSet(obj: Set<unknown>, deref: (value: unknown) => unknown) {
+function derefSet(obj: Set<unknown>, deref: DerefFunction) {
   for (const value of obj) {
     const newValue = deref(value);
     if (newValue !== value) {

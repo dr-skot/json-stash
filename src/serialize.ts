@@ -10,35 +10,39 @@ export function isDeserializable(value: unknown): value is Deserializable {
   return isPlainObject(value) && "_stashType" in value;
 }
 
-export function serialize(value: unknown) {
-  for (const serializer of DEFAULT_SERIALIZERS) {
-    if (value instanceof serializer.type) {
-      return {
-        _stashType: serializer.key,
-        data: serializer.save(value),
-      };
-    }
-  }
-  return value;
+export function serialize(value: unknown, serializers: Serializer[] = []) {
+  serializers = [...serializers, ...DEFAULT_SERIALIZERS];
+  const serializer = serializers.find((s) => value instanceof s.type);
+  if (!serializer) return value;
+  return {
+    _stashType: serializer.key,
+    data: serializer.save(value),
+  };
 }
 
-export function deserialize(value: Deserializable) {
-  for (const serializer of DEFAULT_SERIALIZERS) {
-    if (value._stashType === serializer.key) {
-      const load = serializer.load || defaultLoader(serializer);
-      return load(value.data as any);
-    }
+export function deserialize(
+  value: Deserializable,
+  serializers: Serializer[] = []
+) {
+  serializers = [...serializers, ...DEFAULT_SERIALIZERS];
+  const serializer = serializers.find((s) => s.key === value._stashType);
+  if (!serializer) {
+    console.warn(`No serializer found for ${value._stashType}`);
+    return value;
   }
-  return value;
+  const load = serializer.load || defaultLoader(serializer);
+  return load(value.data as any);
 }
 
 export function dereference(
   type: string,
   value: unknown,
-  deRef: (value: unknown) => unknown
+  deref: (value: unknown) => unknown,
+  serializers: Serializer[] = []
 ) {
-  const serializer = DEFAULT_SERIALIZERS.find((s) => s.key === type);
-  serializer?.deRef?.(value, deRef);
+  serializers = [...serializers, ...DEFAULT_SERIALIZERS];
+  const serializer = serializers.find((s) => s.key === type);
+  serializer?.deref?.(value, deref);
   return value;
 }
 

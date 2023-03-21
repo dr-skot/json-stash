@@ -19,36 +19,6 @@ const unstashed = unstash(stashed);
 // `unstashed` is a deep copy of `anything`
 ```
 
-## Non-primitive types
-
-`JSON.stringify/parse` doesn't support non-primitive data. `Date`s get converted to strings, and most other objects become `{}`.
-
-```javascript
-JSON.parse(JSON.stringify(new Date("1969-07-21T02:56Z")))
-// '1969-07-21T02:56:00.000Z'
-
-JSON.parse(JSON.stringify(new Map([["driver", "Armstrong"], ["shotgun", "Aldrin"]])))
-// {}
-
-JSON.parse(JSON.stringify({ collect: /rock/g }));
-// { collect: {} }
-```
-
-`json-stash` handles `Date`, `RegExp`, `Map`, and `Set` correctly.
-
-```javascript
-unstash(stash(new Date("1969-07-21T02:56Z")))
-// 1969-07-21T02:56:00.000Z // Date object
-
-unstash(stash(new Map([["driver", "Armstrong"], ["shotgun", "Aldrin"]])))
-// Map(2) { 'driver' => 'Armstrong', 'shotgun' => 'Aldrin' }
-
-unstash(stash({ collect: /rock/g }));
-// { collect: /rock/g }
-```
-
-Support for other common types, and for user-defined types, is on the todo list.
-
 ## Circular references
 
 `JSON.stringify/parse` chokes on circular references.
@@ -91,6 +61,95 @@ unstashed = unstash(stash(leaders3p));
 // unstashed.attempts === unstashed.made
 ```
 
+## Non-primitive types
+
+`JSON.stringify/parse` doesn't support non-primitive data. `Date`s get converted to strings, and most other objects become `{}`.
+
+```javascript
+JSON.parse(JSON.stringify(new Date("1969-07-21T02:56Z")))
+// '1969-07-21T02:56:00.000Z'
+
+JSON.parse(JSON.stringify(new Map([["driver", "Armstrong"], ["shotgun", "Aldrin"]])))
+// {}
+
+JSON.parse(JSON.stringify({ collect: /rock/g }));
+// { collect: {} }
+```
+
+`json-stash` handles `Date`, `RegExp`, `Map`, and `Set` correctly.
+
+```javascript
+unstash(stash(new Date("1969-07-21T02:56Z")))
+// 1969-07-21T02:56:00.000Z // Date object
+
+unstash(stash(new Map([["driver", "Armstrong"], ["shotgun", "Aldrin"]])))
+// Map(2) { 'driver' => 'Armstrong', 'shotgun' => 'Aldrin' }
+
+unstash(stash({ collect: /rock/g }));
+// { collect: /rock/g }
+```
+
+### User-defined types
+
+You can serialize your own types by passing custom serializers
+to the `stash` and `unstash` functions.
+
+```typescript
+class MoonGuy {
+  constructor(name, order) {
+    this.name = name;
+    this.order = order;
+  }
+}
+
+const moonGuySerializer = {
+  key: 'MoonGuy',
+  type: MoonGuy,
+  save: (guy) => [guy.name, guy.order],
+};
+
+const eagleCrew = [new MoonGuy('Armstrong', 1), new MoonGuy('Aldrin', 2)];
+
+const stashed = stash(eagleCrew, [moonGuySerializer]);
+const unstashed = unstash(stashed, [moonGuySerializer]);
+```
+
+The properties of a serializer are
+
+- `key`: a unique identifier for your type. Unless you want to override
+the default serializers for `Date`, `RegExp`, `Map`, or `Set`, don't use those keys.
+
+- `type`: the type of objects to serialize (the test is `x instanceof type`)
+
+- `save`: should normally return an array of parameters to pass to the `new type` constructor—or 
+if reconstructing your object is more complicated than that, you can define a custom `load` function
+
+- `load`: (optional) reconstructs the object using the data returned by `save`. 
+Defaults to `(data) => new type(...data)`
+
+If your object can contain non-primitive properties, you'll also need a `deref` function to handle circular references.
+
+- `deref`: (optional) dereferences any placeholders among the object's properties. 
+Receives the object and a deref function. Must modify the object in place.
+
+Here's the `Map` serializer for example:
+
+```javascript
+const mapSerializer = {
+  key: "Map",
+  type: Map, 
+  save: (value: Map<unknown, unknown>) => [[...value]],
+  deref: (obj: Map<unknown, unknown>, deref) => {
+    for (const [key, value] of obj) {
+      const newKey = deref(key);
+      const newValue = deref(value);
+      if (newKey !== key) obj.delete(key);
+      if (newKey !== key || newValue !== value) obj.set(newKey, newValue);
+    }
+  },
+};
+```
+
 ## Caveats
 
 `stash` inserts special objects into the data structure to represent non-primitive types and duplicate references.
@@ -106,5 +165,4 @@ Presumably the likelihood of such a key collision is slim. Protecting against it
 ## Todo
 
 - Support other common types
-- Support user-defined types 
 - Protect against key collisions

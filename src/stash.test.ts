@@ -127,4 +127,30 @@ describe("stash", () => {
     const output = fromJSON(toJSON(input));
     expect(output.get("a")).toBe(output.get("b"));
   });
+
+  it("supports user-defined serializers", () => {
+    class MoonGuy {
+      name: string;
+      order: number;
+      constructor(name: string, order: number) {
+        this.name = name;
+        this.order = order;
+      }
+    }
+
+    const moonGuySerializer = {
+      type: MoonGuy,
+      key: "MoonGuy",
+      save: (guy: MoonGuy) => [guy.name, guy.order],
+    };
+
+    const eagleCrew = [new MoonGuy("Armstrong", 1), new MoonGuy("Aldrin", 2)];
+
+    const stashed = toJSON(eagleCrew, [moonGuySerializer]);
+    const unstashed = fromJSON(stashed, [moonGuySerializer]);
+
+    expect(unstashed[0]).toBeInstanceOf(MoonGuy);
+    expect(unstashed[1]).toBeInstanceOf(MoonGuy);
+    expect(unstashed).toEqual(eagleCrew);
+  });
 });

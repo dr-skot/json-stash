@@ -6,34 +6,38 @@ import {
   serialize,
 } from "./serialize";
 import { deepMap } from "./utils";
+import { Serializer } from "./serializers";
 
 export type Stash = {
   $: any;
 };
 
-export function toJSON(data: unknown) {
-  const stash = encode({ $: data });
+export function toJSON(data: unknown, serializers?: Serializer[]) {
+  const stash = encode({ $: data }, serializers);
   return JSON.stringify(stash.$);
 }
 
-export function fromJSON(json: string) {
+export function fromJSON(json: string, serializers?: Serializer[]) {
   const stash = { $: JSON.parse(json) };
-  return decode(stash).$;
+  return decode(stash, serializers).$;
 }
 
 //
 // internals
 //
 
-function encode(stash: Stash): Stash {
+function encode(stash: Stash, serializers?: Serializer[]): Stash {
   const saveRefs = getRefSaver();
-  return deepMap((value, path) => serialize(saveRefs(path, value)), {
-    depthFirst: false,
-    inPlace: false,
-  })(stash) as Stash;
+  return deepMap(
+    (value, path) => serialize(saveRefs(path, value), serializers),
+    {
+      depthFirst: false,
+      inPlace: false,
+    }
+  )(stash) as Stash;
 }
 
-function decode(stash: Stash): Stash {
+function decode(stash: Stash, serializers?: Serializer[]): Stash {
   const refs = getRefResolver(stash);
 
   // first pass: deserialize special types, note which ones need dereferencing
@@ -42,7 +46,10 @@ function decode(stash: Stash): Stash {
     (v, path) => {
       if (isRef(v)) return v;
       if (isDeserializable(v)) {
-        const deserialized = refs.registerValue(deserialize(v), path);
+        const deserialized = refs.registerValue(
+          deserialize(v, serializers),
+          path
+        );
         if (hasRefs(v.data)) needsDeref.push([v._stashType, deserialized]);
         return refs.registerValue(deserialized, path);
       }
@@ -54,7 +61,7 @@ function decode(stash: Stash): Stash {
   // second pass: resolve refs
   refs.resolve(stash);
   needsDeref.forEach(([type, deserialized]) => {
-    dereference(type, deserialized, refs.resolve);
+    dereference(type, deserialized, refs.resolve, serializers);
   });
 
   return stash;
