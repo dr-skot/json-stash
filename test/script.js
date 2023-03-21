@@ -1,7 +1,8 @@
-const stash = require("json-stash");
+const { stash, unstash } = require("json-stash");
 
+// TODO elaborate these tests
 const d = { a: 1, b: 2, c: 3 };
 d.d = d;
-const e = { d, f: 4, g: [5, 6, 7] };
-console.log(stash.toJSON(e));
-console.log(stash.fromJSON(stash.toJSON(e)));
+const e = { f: 4, g: [5, 6, 7], h: { i: 8, j: 9 } };
+console.log(stash(d));
+console.log(unstash(stash(d)));

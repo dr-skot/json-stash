@@ -1,1 +1,1 @@
-export { toJSON, fromJSON } from "./stash";
+export { toJSON as stash, fromJSON as unstash } from "./stash";
