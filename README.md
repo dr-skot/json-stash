@@ -91,4 +91,20 @@ unstashed = unstash(stash(leaders3p));
 // unstashed.attempts === unstashed.made
 ```
 
+## Caveats
 
+`stash` inserts special objects into the data structure to represent non-primitive types and duplicate references.
+
+```typescript
+type NonPrimitive = { _stashType: string, data: any }
+type Ref = { _stashRef: string }
+```
+
+So if you have `_stashType` or `_stashRef` keys in your actual data, it will mess things up. 
+Presumably the likelihood of such a key collision is slim. Protecting against it is on the todo list.
+
+## Todo
+
+- Support other common types
+- Support user-defined types 
+- Protect against key collisions
