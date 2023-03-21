@@ -173,4 +173,4 @@ Presumably the likelihood of such a key collision is slim. Protecting against it
 ## Todo
 
 - Support other common types
-- Protect against key collisions
+- Protect against key collisions with `_stashType` and `_stashRef`
