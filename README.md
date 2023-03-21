@@ -137,7 +137,7 @@ Defaults to `(data) => new type(...data)`
 If your object can contain other objects, you'll also need a `deref` function 
 to handle circular/duplicate references.
 
-- `deref`: (optional) dereferences any placeholders among the object's properties. 
+- `deref`: (optional) dereferences any reference placeholders inside the object. 
 Receives the object and a deref function. Must modify the object in place.
 
 Here's the `Map` serializer for example:
