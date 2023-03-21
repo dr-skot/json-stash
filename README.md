@@ -1,6 +1,6 @@
 # json-stash
 
-Serialize and deserialize javascript data. Supports non-primitive types and circular references.
+Serialize and deserialize javascript data to/from JSON. Supports non-primitive types and circular references.
 
 ## Installation
 
