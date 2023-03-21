@@ -112,6 +112,10 @@ const eagleCrew = [new MoonGuy('Armstrong', 1), new MoonGuy('Aldrin', 2)];
 
 const stashed = stash(eagleCrew, [moonGuySerializer]);
 const unstashed = unstash(stashed, [moonGuySerializer]);
+// [ 
+//   MoonGuy { name: 'Armstrong', order: 1 },
+//   MoonGuy { name: 'Aldrin', order: 2 }
+// ]
 ```
 
 The properties of a serializer are
@@ -130,7 +134,7 @@ if reconstructing your object is more complicated than that, you can define a cu
 - `load`: (optional) reconstructs the object using the data returned by `save`. 
 Defaults to `(data) => new type(...data)`
 
-If your object can contain non-primitive properties, you'll also need a `deref` function 
+If your object can contain other objects, you'll also need a `deref` function 
 to handle circular/duplicate references.
 
 - `deref`: (optional) dereferences any placeholders among the object's properties. 
