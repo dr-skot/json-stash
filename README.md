@@ -46,7 +46,7 @@ maintains those internal identities. `JSON.stringify/parse` doesn't
 ```javascript
 curry = { name: 'Steph Curry' };
 kerr = { name: 'Steve Kerr' };
-leaders3p = {
+leaders3p = { // per-game stats
     attempts: curry,
     made: curry,
     pct: kerr,
