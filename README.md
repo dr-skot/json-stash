@@ -119,7 +119,10 @@ The properties of a serializer are
 - `key`: a unique identifier for your type. Unless you want to override
 the default serializers for `Date`, `RegExp`, `Map`, or `Set`, don't use those keys.
 
-- `type`: the type of objects to serialize (the test is `x instanceof type`)
+- `type`: the type of objects to serialize (detected by `x instanceof type`—or if that's not the right test, 
+you can define a custom `test` function)
+
+- `test`: (optional) a custom test to detect this type of object. Defaults to `(x) => x instance of type`.
 
 - `save`: should normally return an array of parameters to pass to the `new type` constructor—or 
 if reconstructing your object is more complicated than that, you can define a custom `load` function
@@ -127,7 +130,8 @@ if reconstructing your object is more complicated than that, you can define a cu
 - `load`: (optional) reconstructs the object using the data returned by `save`. 
 Defaults to `(data) => new type(...data)`
 
-If your object can contain non-primitive properties, you'll also need a `deref` function to handle circular references.
+If your object can contain non-primitive properties, you'll also need a `deref` function 
+to handle circular/duplicate references.
 
 - `deref`: (optional) dereferences any placeholders among the object's properties. 
 Receives the object and a deref function. Must modify the object in place.

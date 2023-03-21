@@ -12,7 +12,9 @@ export function isDeserializable(value: unknown): value is Deserializable {
 
 export function serialize(value: unknown, serializers: Serializer[] = []) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => value instanceof s.type);
+  const serializer = serializers.find((s) =>
+    s.test ? s.test(value) : value instanceof s.type
+  );
   if (!serializer) return value;
   return {
     _stashType: serializer.key,

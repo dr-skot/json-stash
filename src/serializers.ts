@@ -1,8 +1,9 @@
 export type DerefFunction = (value: unknown) => unknown;
 
 export type Serializer = {
-  type: any;
   key: string;
+  type: any;
+  test?: (value: any) => boolean;
   save: (value: any) => any;
   load?: (value: any) => any;
   deref?: (value: any, deref: DerefFunction) => void;

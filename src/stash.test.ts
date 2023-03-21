@@ -153,4 +153,31 @@ describe("stash", () => {
     expect(unstashed[1]).toBeInstanceOf(MoonGuy);
     expect(unstashed).toEqual(eagleCrew);
   });
+
+  it("supports serializers with custom test and load functions", () => {
+    type MoonGuy = {
+      type: "MoonGuy";
+      name: string;
+      order: number;
+    };
+    function makeMoonGuy(name: string, order: number): MoonGuy {
+      return { type: "MoonGuy", name, order };
+    }
+    const moonGuySerializer = {
+      key: "MoonGuy",
+      type: Object,
+      test: (obj: MoonGuy) => obj.type === "MoonGuy",
+      save: (guy: MoonGuy) => [guy.name, guy.order],
+      load: ([name, order]: [string, number]) => makeMoonGuy(name, order),
+    };
+
+    const eagleCrew = [makeMoonGuy("Armstrong", 1), makeMoonGuy("Aldrin", 2)];
+
+    const stashed = toJSON(eagleCrew, [moonGuySerializer]);
+    const unstashed = fromJSON(stashed, [moonGuySerializer]);
+
+    expect(unstashed[0].type).toBe("MoonGuy");
+    expect(unstashed[1].type).toBe("MoonGuy");
+    expect(unstashed).toEqual(eagleCrew);
+  });
 });
