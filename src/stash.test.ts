@@ -1,6 +1,43 @@
 import { fromJSON, toJSON } from "./stash";
+
+function expectStringifyToFail(input: unknown) {
+  const output = JSON.parse(JSON.stringify(input));
+  expect(output).not.toEqual(input);
+}
+
+function expectStringifyToThrow(input: unknown) {
+  expect(() => JSON.stringify(input)).toThrow();
+}
+
+function expectStashToSucceed(input: unknown) {
+  const output = fromJSON(toJSON(input));
+  expect(output).toEqual(input);
+}
+
+describe("JSON.stringify", () => {
+  it("punts on non-primitive types", () => {
+    const eagle = {
+      crew: new Map([
+        ["driver", "Armstrong"],
+        ["shotgun", "Aldrin"],
+      ]),
+      landed: new Date("1969-07-21T02:56Z"),
+      search: /rock/g,
+    };
+    Object.values(eagle).forEach(expectStringifyToFail);
+    Object.values(eagle).forEach(expectStashToSucceed);
+  });
+
+  it("chokes on circular refs", () => {
+    const egoist = {} as any;
+    egoist.preoccupation = egoist;
+    expectStringifyToThrow(egoist);
+    expectStashToSucceed(egoist);
+  });
+});
+
 describe("stash", () => {
-  it("handles ordinary objects", () => {
+  it("handles primitives just like JSON.stringify", () => {
     const inputs = [
       null,
       { a: 1, b: { c: 3 }, d: [4, 5, 6], e: undefined },
@@ -16,89 +53,71 @@ describe("stash", () => {
     });
   });
 
-  it("restores duplicate properties", () => {
+  it("maintains internal object identity", () => {
     const a = [1, 2, 3];
-    const obj = { orig: a, same: a, copied: [...a] };
-    expect(obj.same).toBe(obj.orig);
-    expect(obj.copied).not.toBe(obj.orig);
-    const deserialized = fromJSON(toJSON(obj));
-    expect(deserialized.same).toBe(deserialized.orig);
-    expect(deserialized.copied).not.toBe(deserialized.orig);
+    const input = { orig: a, same: a, copied: [...a] };
+    expect(input.same).toBe(input.orig);
+    expect(input.copied).not.toBe(input.orig);
+    // stash maintains identity of orig and same
+    const output = fromJSON(toJSON(input));
+    expect(output.same).toBe(output.orig);
+    expect(output.copied).not.toBe(output.orig);
+    // JSON stringify doesn't do this
+    const destringified = JSON.parse(JSON.stringify(input));
+    expect(destringified.same).not.toBe(destringified.orig);
   });
 
   it("restores circular refs", () => {
-    const obj: { self?: unknown; num: number } = { num: 2 };
-    obj.self = obj;
-    const serialized = toJSON(obj);
-    const deserialized = fromJSON(serialized);
-    expect(deserialized).toEqual(obj);
-    expect(deserialized.self).toBe(deserialized);
+    const input: { self?: unknown; num: number } = { num: 2 };
+    input.self = input;
+    expectStringifyToThrow(input); // JSON stringify chokes
+
+    const output = fromJSON(toJSON(input));
+    expect(output).toEqual(input);
+    expect(output.self).toBe(output);
 
     // a more nested example
-    const obj2 = { a: 1, b: [4, 5, obj], c: undefined };
-    const serialized2 = toJSON(obj2);
-    const deserialized2 = fromJSON(serialized2);
-    expect(deserialized2).toEqual(obj2);
-    expect(deserialized2.b[2]).toBe(deserialized2.b[2].self);
+    const input2 = { a: 1, b: [4, 5, input], c: undefined };
+    expectStringifyToThrow(input); // JSON stringify chokes
+
+    const output2 = fromJSON(toJSON(input2));
+    expect(output2).toEqual(input2);
+    expect(output2.b[2]).toBe(output2.b[2].self);
   });
 
   it("serializes Date objects", () => {
-    const data = { date: new Date() };
-    const serialized = toJSON(data);
-    const deserialized = fromJSON(serialized);
-    expect(deserialized.date).toBeInstanceOf(Date);
-    expect(deserialized).toEqual(data);
+    const input = new Date();
+    const output = fromJSON(toJSON(input));
+    expect(output).toBeInstanceOf(Date);
+    expect(output).toEqual(input);
   });
 
   it("serializes RegExp objects", () => {
-    const data = { regex: /foo/gi };
-    const serialized = toJSON(data);
-    const deserialized = fromJSON(serialized);
-    expect(deserialized.regex).toBeInstanceOf(RegExp);
-    expect(deserialized).toEqual(data);
+    const input = /foo/gi;
+    const output = fromJSON(toJSON(input));
+    expect(output).toBeInstanceOf(RegExp);
+    expect(output).toEqual(input);
   });
 
   it("serializes Map objects", () => {
-    const data = {
-      map: new Map([
-        ["a", 1],
-        ["b", 2],
-      ]),
-    };
-    const serialized = toJSON(data);
-    const deserialized = fromJSON(serialized);
-    expect(deserialized.map).toBeInstanceOf(Map);
-    expect(deserialized).toEqual(data);
-  });
-
-  it("works if outer object is an array", () => {
-    const a = [1, 2, 3];
-    const data = [1, 2, a, new Date()];
-    const serialized = toJSON(data);
-    const deserialized = fromJSON(serialized);
-    expect(deserialized).toEqual(data);
-  });
-
-  it("works if outer object is a Map", () => {
-    const data = new Map([
+    const input = new Map([
       ["a", 1],
       ["b", 2],
     ]);
-    const serialized = toJSON(data);
-    const deserialized = fromJSON(serialized);
-    expect(deserialized).toBeInstanceOf(Map);
-    expect(deserialized).toEqual(data);
+    const output = fromJSON(toJSON(input));
+    expect(output).toBeInstanceOf(Map);
+    expect(output).toEqual(input);
   });
 
-  it("handles duplicates inside of Map", () => {
-    const dup = { value: 5 };
-    const data = new Map([
-      ["a", dup],
-      ["b", dup],
+  it("handles object identity inside of non-primitives", () => {
+    const singleton = { value: 5 };
+    const input = new Map([
+      ["a", singleton],
+      ["b", singleton],
     ]);
-    const serialized = toJSON(data);
-    const deserialized = fromJSON(serialized);
-    expect(data.get("a")).toBe(data.get("b"));
-    expect(deserialized.get("a")).toBe(deserialized.get("b"));
+    expect(input.get("a")).toBe(input.get("b"));
+
+    const output = fromJSON(toJSON(input));
+    expect(output.get("a")).toBe(output.get("b"));
   });
 });
