@@ -2,35 +2,31 @@ export type Serializer = {
   type: any;
   key: string;
   save: (value: any) => any;
-  load: (value: any) => any;
-  deRef?: (value: any, deRef: (value: unknown) => unknown) => void;
+  load?: (value: any) => any;
+  deRef?: (value: any, deref: (value: unknown) => unknown) => void;
 };
 
 export const DEFAULT_SERIALIZERS = [
   {
     type: Date,
     key: "Date",
-    save: (value: Date) => value.getTime(),
-    load: (value: number) => new Date(value),
+    save: (value: Date) => [value.toISOString()],
   },
   {
     type: RegExp,
     key: "RegExp",
-    save: (value: RegExp) => ({ source: value.source, flags: value.flags }),
-    load: (value: { source: string; flags: string }) =>
-      new RegExp(value.source, value.flags),
+    save: (value: RegExp) => [value.source, value.flags],
   },
   {
     type: Map,
     key: "Map",
-    save: (value: Map<unknown, unknown>) => [...value],
-    load: (value: [unknown, unknown][]) => new Map(value),
-    deRef: (obj: Map<unknown, unknown>, deRef: (value: unknown) => unknown) => {
+    save: (value: Map<unknown, unknown>) => [[...value]],
+    deRef: (obj: Map<unknown, unknown>, deref) => {
       for (const [key, value] of obj) {
-        const newKey = deRef(key);
-        const newValue = deRef(value);
+        const newKey = deref(key);
+        const newValue = deref(value);
         if (newKey !== key) obj.delete(key);
-        obj.set(newKey, newValue);
+        if (newKey !== key || newValue !== value) obj.set(newKey, newValue);
       }
     },
   },

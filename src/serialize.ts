@@ -1,5 +1,5 @@
 import { isPlainObject } from "./utils";
-import { DEFAULT_SERIALIZERS } from "./serializers";
+import { DEFAULT_SERIALIZERS, Serializer } from "./serializers";
 
 export type Deserializable = {
   _stashType: string;
@@ -25,7 +25,8 @@ export function serialize(value: unknown) {
 export function deserialize(value: Deserializable) {
   for (const serializer of DEFAULT_SERIALIZERS) {
     if (value._stashType === serializer.key) {
-      return serializer.load(value.data as any);
+      const load = serializer.load || defaultLoader(serializer);
+      return load(value.data as any);
     }
   }
   return value;
@@ -39,4 +40,8 @@ export function dereference(
   const serializer = DEFAULT_SERIALIZERS.find((s) => s.key === type);
   serializer?.deRef?.(value, deRef);
   return value;
+}
+
+export function defaultLoader(serializer: Serializer) {
+  return (value: unknown[]) => new serializer.type(...value);
 }
