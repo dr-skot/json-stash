@@ -34,7 +34,7 @@ JSON.parse(JSON.stringify({ collect: /rock/g }));
 // { collect: {} }
 ```
 
-`json-stash` handles `Date`, `Map`, and `RegExp` correctly.
+`json-stash` handles `Date`, `RegExp`, `Map`, and `Set` correctly.
 
 ```javascript
 unstash(stash(new Date("1969-07-21T02:56Z")))
@@ -47,7 +47,7 @@ unstash(stash({ collect: /rock/g }));
 // { collect: /rock/g }
 ```
 
-Support for other common types, and for user-defined types, is coming soon.
+Support for other common types, and for user-defined types, is on the todo list.
 
 ## Circular references
 

@@ -109,6 +109,13 @@ describe("stash", () => {
     expect(output).toEqual(input);
   });
 
+  it("serializes Set objects", () => {
+    const input = new Set(["Armstrong", "Aldrin", "Collins"]);
+    const output = fromJSON(toJSON(input));
+    expect(output).toBeInstanceOf(Set);
+    expect(output).toEqual(input);
+  });
+
   it("handles object identity inside of non-primitives", () => {
     const singleton = { value: 5 };
     const input = new Map([
