@@ -1,7 +1,7 @@
 // a ref is a placeholder for a value that has already been seen
 // the _stashRef is a path to the value in some reference object
 import { deepForEach, deepMap, hasOwnProperty, isPlainObject } from "./utils";
-import { StashRoot } from "./stash";
+import { Stash } from "./stash";
 
 export type Ref = {
   _stashRef: string;
@@ -36,7 +36,7 @@ export function getRefSaver(): RefSaver {
   return refSaver;
 }
 
-export function getRefResolver(root: StashRoot) {
+export function getRefResolver(root: Stash) {
   const refs: Record<string, unknown> = {};
 
   // find all the ref paths in the object

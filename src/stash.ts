@@ -7,12 +7,12 @@ import {
 } from "./serialize";
 import { deepMap } from "./utils";
 
-export type StashRoot = {
+export type Stash = {
   $: any;
 };
 
-export function toJSON(raw: unknown) {
-  const stash = encode({ $: raw });
+export function toJSON(data: unknown) {
+  const stash = encode({ $: data });
   return JSON.stringify(stash.$);
 }
 
@@ -25,37 +25,37 @@ export function fromJSON(json: string) {
 // internals
 //
 
-function encode(raw: StashRoot): StashRoot {
+function encode(stash: Stash): Stash {
   const saveRefs = getRefSaver();
   return deepMap((value, path) => serialize(saveRefs(path, value)), {
     depthFirst: false,
     inPlace: false,
-  })(raw) as StashRoot;
+  })(stash) as Stash;
 }
 
-function decode(root: StashRoot): StashRoot {
-  const refs = getRefResolver(root);
+function decode(stash: Stash): Stash {
+  const refs = getRefResolver(stash);
 
   // first pass: deserialize special types, note which ones need dereferencing
   const needsDeref: any[] = [];
-  root = deepMap(
+  stash = deepMap(
     (v, path) => {
       if (isRef(v)) return v;
       if (isDeserializable(v)) {
         const deserialized = refs.registerValue(deserialize(v), path);
-        if (hasRefs(v.data)) needsDeref.push([v, deserialized]);
+        if (hasRefs(v.data)) needsDeref.push([v._stashType, deserialized]);
         return refs.registerValue(deserialized, path);
       }
       return refs.registerValue(v, path);
     },
     { depthFirst: true, inPlace: false }
-  )(root) as StashRoot;
+  )(stash) as Stash;
 
   // second pass: resolve refs
-  refs.resolve(root);
-  needsDeref.forEach(([spec, deserialized]) => {
-    dereference(spec._stashType, deserialized, refs.resolve);
+  refs.resolve(stash);
+  needsDeref.forEach(([type, deserialized]) => {
+    dereference(type, deserialized, refs.resolve);
   });
 
-  return root;
+  return stash;
 }
