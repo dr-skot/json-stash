@@ -50,7 +50,7 @@ function decode(stash: Stash, serializers?: Serializer[]): Stash {
           deserialize(v, serializers),
           path
         );
-        if (hasRefs(v.data)) needsDeref.push([v._stashType, deserialized]);
+        if (hasRefs(v.data)) needsDeref.push([v, deserialized]);
         return refs.registerValue(deserialized, path);
       }
       return refs.registerValue(v, path);
@@ -60,8 +60,9 @@ function decode(stash: Stash, serializers?: Serializer[]): Stash {
 
   // second pass: resolve refs
   refs.resolve(stash);
-  needsDeref.forEach(([type, deserialized]) => {
-    dereference(type, deserialized, refs.resolve, serializers);
+  needsDeref.forEach(([spec, deserialized]) => {
+    // dereference(spec._stashType, deserialized, refs.resolve, serializers);
+    dereference(spec, deserialized, refs.resolve, serializers);
   });
 
   return stash;

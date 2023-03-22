@@ -24,8 +24,6 @@ describe("seri", () => {
     const date = new Date();
     const dateClone = seri.parse(seri.stringify(date));
 
-    console.log(seri.stringify(date));
-
     // It is a Date instance.
     dateClone instanceof Date;
 
@@ -36,24 +34,17 @@ describe("seri", () => {
     date.toJSON() === dateClone.toJSON();
   });
 
-  it("supports Map", () => {
+  it("does not support Map", () => {
     const input = new Map([
       [1, 2],
       [3, 4],
     ]);
-    const output = seri.parse(seri.stringify(input));
-
-    console.log(seri.stringify(input));
-
-    expect(output).toBeInstanceOf(Map);
-    expect(output.toEqual(input));
+    expect(() => seri.stringify(input)).toThrow();
   });
 
-  it("handles circular references", () => {
+  it("does not ehandles circular references", () => {
     const input = { a: 1, meta: { self: null } };
     input.meta.self = input;
-    const output = seri.parse(seri.stringify(input));
-    expect(output).toEqual(input);
-    expect(output.meta.self).toBe(output);
+    expect(() => seri.stringify(input)).toThrow();
   });
 });

@@ -37,14 +37,16 @@ export function deserialize(
 }
 
 export function dereference(
-  type: string,
+  spec: Deserializable,
   value: unknown,
   deref: (value: unknown) => unknown,
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => s.key === type);
-  serializer?.deref?.(value, deref);
+  const serializer = serializers.find((s) => s.key === spec._stashType);
+  const data = deref(spec.data);
+  // if (spec.data !== data)
+  serializer?.load?.(data, value);
   return value;
 }
 

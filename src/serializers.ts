@@ -5,50 +5,38 @@ export type Serializer = {
   type: any;
   test?: (value: any) => boolean;
   save: (value: any) => any;
-  load?: (value: any) => any;
-  deref?: (value: any, deref: DerefFunction) => void;
+  load?: (data: any, value?: any) => any;
 };
 
 export const DEFAULT_SERIALIZERS = [
   {
-    type: Date,
     key: "Date",
+    type: Date,
     save: (value: Date) => [value.toISOString()],
   },
   {
-    type: RegExp,
     key: "RegExp",
+    type: RegExp,
     save: (value: RegExp) => [value.source, value.flags],
   },
   {
-    type: Map,
     key: "Map",
-    save: (value: Map<unknown, unknown>) => [[...value]],
-    deref: derefMap,
+    type: Map,
+    save: (map: Map<unknown, unknown>) => [...map],
+    load: (data: [unknown, unknown][], map = new Map()) => {
+      map.clear();
+      for (const [k, v] of data) map.set(k, v);
+      return map;
+    },
   },
   {
-    type: Set,
     key: "Set",
-    save: (value: Set<unknown>) => [[...value]],
-    deref: derefSet,
+    type: Set,
+    save: (set: Set<unknown>) => [...set],
+    load: (data: unknown[], value = new Set()) => {
+      value.clear();
+      for (const item of data) value.add(item);
+      return value;
+    },
   },
 ] as Serializer[];
-
-function derefMap(obj: Map<unknown, unknown>, deref: DerefFunction) {
-  for (const [key, value] of obj) {
-    const newKey = deref(key);
-    const newValue = deref(value);
-    if (newKey !== key) obj.delete(key);
-    if (newKey !== key || newValue !== value) obj.set(newKey, newValue);
-  }
-}
-
-function derefSet(obj: Set<unknown>, deref: DerefFunction) {
-  for (const value of obj) {
-    const newValue = deref(value);
-    if (newValue !== value) {
-      obj.delete(newValue);
-      obj.add(newValue);
-    }
-  }
-}

@@ -116,6 +116,18 @@ describe("stash", () => {
     expect(output).toEqual(input);
   });
 
+  it("handles object identity inside of Set", () => {
+    const singleton = { value: 5 };
+    const input = new Map([
+      ["a", singleton],
+      ["b", singleton],
+    ]);
+    expect(input.get("a")).toBe(input.get("b"));
+
+    const output = fromJSON(toJSON(input));
+    expect(output.get("a")).toBe(output.get("b"));
+  });
+
   it("handles object identity inside of non-primitives", () => {
     const singleton = { value: 5 };
     const input = new Map([
