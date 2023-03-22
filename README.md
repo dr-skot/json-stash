@@ -61,9 +61,9 @@ unstashed = unstash(stash(leaders3p));
 // unstashed.attempts === unstashed.made
 ```
 
-## Non-primitive types
+## Non-vanilla types
 
-`JSON.stringify/parse` doesn't support non-primitive data. `Date`s get converted to strings, and most other objects become `{}`.
+`JSON.stringify/parse` doesn't support non-vanilla data. `Date`s get converted to strings, and most other objects become `{}`.
 
 ```javascript
 JSON.parse(JSON.stringify(new Date("1969-07-21T02:56Z")))
@@ -103,7 +103,6 @@ class MoonGuy {
 }
 
 const moonGuySerializer = {
-  key: 'MoonGuy',
   type: MoonGuy,
   save: (guy) => [guy.name, guy.order],
 };
@@ -120,47 +119,58 @@ const unstashed = unstash(stashed, [moonGuySerializer]);
 
 The properties of a serializer are
 
-- `key`: a unique identifier for your type. Unless you want to override
-the default serializers for `Date`, `RegExp`, `Map`, or `Set`, don't use those keys.
+- `type`: the type of objects to serialize, detected by `(x) => x instance of type`—but if that's not the right test, 
+you can define a custom `test` function (see below)
 
-- `type`: the type of objects to serialize (detected by `x instanceof type`—or if that's not the right test, 
-you can define a custom `test` function)
+- `key`: a unique identifier for the type. Defaults to `type.name`
 
 - `test`: (optional) a custom test to detect this type of object. Defaults to `(x) => x instance of type`.
 
-- `save`: should normally return an array of parameters to pass to the `new type` constructor—or 
-if reconstructing your object is more complicated than that, you can define a custom `load` function
+- `save`: returns data that when passed to `load` will reconstruct the object. Ordinarily this is an array of arguments 
+to be passed to `new type`
 
 - `load`: (optional) reconstructs the object using the data returned by `save`. 
-Defaults to `(data) => new type(...data)`
+Defaults to `(data) => new type(...data)`. If your object might contain other objects,
+`load` should take an optional second argument, which might contain an existing object to populate;
+if no such object is passed, `load` should create a new one. This is necessary to resolve duplicate 
+or circular references.
 
-If your object can contain other objects, you'll also need a `deref` function 
-to handle circular/duplicate references.
+To illustrate how it works, here are the serializers for `Date`, `RegExp`, `Map`, and `Set`
 
-- `deref`: (optional) dereferences any reference placeholders inside the object. 
-Receives the object and a deref function. Must modify the object in place.
-
-Here's the `Map` serializer for example:
-
-```javascript
-const mapSerializer = {
-  key: "Map",
-  type: Map, 
-  save: (value: Map<unknown, unknown>) => [[...value]],
-  deref: (obj: Map<unknown, unknown>, deref) => {
-    for (const [key, value] of obj) {
-      const newKey = deref(key);
-      const newValue = deref(value);
-      if (newKey !== key) obj.delete(key);
-      if (newKey !== key || newValue !== value) obj.set(newKey, newValue);
-    }
+```typescript
+const DEFAULT_SERIALIZERS = [
+  {
+    type: Date,
+    save: (value: Date) => [value.toISOString()],
   },
-};
+  {
+    type: RegExp,
+    save: (value: RegExp) => [value.source, value.flags],
+  },
+  {
+    type: Map,
+    save: (map: Map<unknown, unknown>) => [...map],
+    load: (data: [unknown, unknown][], map = new Map()) => {
+      map.clear();
+      for (const [k, v] of data) map.set(k, v);
+      return map;
+    },
+  },
+  {
+    type: Set,
+    save: (set: Set<unknown>) => [...set],
+    load: (data: unknown[], set = new Set()) => {
+      set.clear();
+      for (const item of data) set.add(item);
+      return set;
+    },
+  },
+] as Serializer[];
 ```
 
 ## Caveats
 
-`stash` inserts special objects into the data structure to represent non-primitive types and duplicate references.
+`stash` inserts special objects into the data structure to represent non-vanilla types and duplicate references.
 
 ```typescript
 type NonPrimitive = { _stashType: string, data: any }
