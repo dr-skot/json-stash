@@ -20,51 +20,66 @@ const stashed = stash(anything);
 const unstashed = unstash(stashed);
 
 // `unstashed` is a deep copy of `anything`
+expect(unstashed).toEqual(anything);
 ```
 
-## Circular references
+## It's like JSON.stringify
 
-`JSON.stringify/parse` chokes on circular references.
+When used on vanilla objects, `stash` is equivalent to `JSON.stringify`
+
+```javascript
+armstrong = { name: "Neil", apollo: 11, steps: ["small", "giant"] };
+
+JSON.stringify(armstrong);
+// '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+
+stash(armstrong);
+// '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+```
+
+## Only better
+
+But `stash` can handle things `JSON.stringify` can't. For example:
+
+### Circular references
 
 ```javascript
 egoist = {}
 egoist.preoccupation = egoist;
+
 JSON.stringify(egoist);
 // TypeError: Converting circular structure to JSON
-```
 
-`json-stash` doesn't.
+stash(egoist);
+// '{"preoccupation":{"_stashRef":"$"}}'
 
-```javascript
 unstash(stash(egoist));
-// <ref *1> { preoccupation: [Circular *1] }
+// <ref *1> { preoccupation: [Circular *1]
 ```
 
-## Duplicate references
+### In other words, identical objects
 
-Circular references are a special case of duplicate references. 
-When an object contains multiple references to the same object, `json-stash`
-maintains those internal identities. `JSON.stringify/parse` doesn't
+Circular references are a special case of identical objects. 
+When data contains multiple references to the same object, `stash`
+maintains those identities. `JSON.stringify` doesn't
 
 ```javascript
-curry = { name: 'Steph Curry' };
-kerr = { name: 'Steve Kerr' };
-leaders3p = { // per-game stats
-    attempts: curry,
-    made: curry,
-    pct: kerr,
-}
-// leaders3p.attempts === leaders3p.made
+steph = { name: 'Curry' };
+steve = { name: 'Kerr' };
 
-unstringified = JSON.parse(JSON.stringify(leaders3p));
-// unstringified.attempts.name === unstringified.made.name
-// unstringified.attempts !== unstringified.made
+// per-game stat leaders
+threes = { shot: steph, made: steph, pct: steve }
 
-unstashed = unstash(stash(leaders3p));
-// unstashed.attempts === unstashed.made
+unstringified = JSON.parse(JSON.stringify(threes));
+// `shot` and `made` are duplicates
+expect(unstringified.shot).not.toBe(unstringified.made);
+
+unstashed = unstash(stash(threes));
+// `shot` and `made` are the same object
+expect(unstashed.shot).toBe(unstashed.made);
 ```
 
-## Non-vanilla types
+### Non-vanilla types
 
 `JSON.stringify/parse` doesn't support non-vanilla data. `Date`s get converted to strings, and most other objects become `{}`.
 
@@ -79,7 +94,7 @@ JSON.parse(JSON.stringify({ collect: /rock/g }));
 // { collect: {} }
 ```
 
-`json-stash` handles `Date`, `RegExp`, `Map`, and `Set` correctly.
+`json-stash` supports `Date`, `RegExp`, `Map`, and `Set` out of the box.
 
 ```javascript
 unstash(stash(new Date("1969-07-21T02:56Z")))
@@ -94,7 +109,7 @@ unstash(stash({ collect: /rock/g }));
 
 ### User-defined types
 
-You can serialize your own types by passing custom serializers
+You can add support for other types by passing custom serializers
 to the `stash` and `unstash` functions.
 
 ```typescript
@@ -120,34 +135,39 @@ const unstashed = unstash(stashed, [moonGuySerializer]);
 // ]
 ```
 
-The simplest serializer is just a type and a save function. The `type` is a class (or constructor function), 
-and `save` returns an array of arguments to be passed to `new type` to reconstruct the object.
-Here is the built-in `RegExp` serializer, for example:
+The simplest serializer is just a `type` and a `save` function. The `type` is a class constructor, 
+and `save` returns an array of arguments to be passed to it by calling `new type(...args)`.
+For example, here are the built-in serializers for `Date` and `RegExp`:
 
 ```typescript
-const regExpSerializer = {
+const serializers = [{
+  type: Date,
+  save: (date: Date) => [date.toISOString()],
+}, {
   type: RegExp,
-  save: (value: RegExp) => [value.source, value.flags],
-};
+  save: (regex: RegExp) => [regex.source, regex.flags],
+}];
 ```
 
 If your object can contain other objects, you'll also need to define a `load` function. The load function takes 
 two arguments: 
-- `data` the value returned by `save`
-- `existing` (optional) an existing object to populate
+- `data`: the value returned by `save`
+- `existing?`: an existing object to populate, or `undefined`
 
 The first time `load` is called, 
 - `data` may contain unresolved object placeholders
-- `existing` will be undefined; `load` should return a new object
+- `existing` will be undefined, and `load` should return a new object
 
-If there were unresolved placeholders the first time, `load` will be called a second time with all placeholders
-resolved in `data` and `existing` set to the object returned by the first call.
-`load` should then populate `existing` with the new data.
+If there were unresolved placeholders the first time, `load` will be called a second time:
+- `data` will have all its placeholders resolved 
+- `existing` will contain the object returned by the first call, and `load` should repopulate it with the new data.
 
-Here is the built-in `Map` serializer, for example:
+This double-pass approach is necessary to handle circular references.
+
+To illustrate, here are the built-in serializers for `Map` and `Set`:
 
 ```typescript
-const mapSerializer = {
+const serializers = [{
   type: Map,
   save: (map: Map<unknown, unknown>) => [...map],
   load: (data: [unknown, unknown][], map = new Map()) => {
@@ -155,19 +175,25 @@ const mapSerializer = {
     for (const [k, v] of data) map.set(k, v);
     return map;
   },
-};
+}, {
+  type: Set,
+  save: (set: Set<unknown>) => [...set],
+  load: (data: unknown[], set = new Set()) => {
+    set.clear();
+    for (const item of data) set.add(item);
+    return set;
+  },
+}];
 ```
 
-This double-pass approach is necessary to handle circular references.
-
-You may need a custom `load` function anyway, if reconstructing your object is more complicated than passing
-what's returned by `save` to `new type`.
+You may need a custom `load` function anyway, if reconstructing your object involves more than passing
+arguments to `new type`.
 
 Other optional serializer properties are:
 
-- `key`: (optional) a unique string identifier for the type. Defaults to `type.name`. If you have types from different packages
-with the same name, for example, you'll need to give them different `key`s to keep them straight
-- `test`: (optional) a predicate to detect this type of object. Defaults to `(x) => x instance of type`.
+- `test`: a test to detect objects of this type. Defaults to `(x) => x instance of type`
+- `key`: a unique string identifier for this type. Defaults to `type.name`. If you have types with the same `type.name` 
+(because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
 
 ## Todo
 
