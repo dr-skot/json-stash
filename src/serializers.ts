@@ -1,26 +1,24 @@
-export type DerefFunction = (value: unknown) => unknown;
-
 export type Serializer = {
-  key: string;
   type: any;
+  // default is type.name
+  key?: string;
+  // default is (value: any) => value instanceof type
   test?: (value: any) => boolean;
   save: (value: any) => any;
+  // default is (data: any) => new type(...data)
   load?: (data: any, value?: any) => any;
 };
 
 export const DEFAULT_SERIALIZERS = [
   {
-    key: "Date",
     type: Date,
     save: (value: Date) => [value.toISOString()],
   },
   {
-    key: "RegExp",
     type: RegExp,
     save: (value: RegExp) => [value.source, value.flags],
   },
   {
-    key: "Map",
     type: Map,
     save: (map: Map<unknown, unknown>) => [...map],
     load: (data: [unknown, unknown][], map = new Map()) => {
@@ -30,13 +28,12 @@ export const DEFAULT_SERIALIZERS = [
     },
   },
   {
-    key: "Set",
     type: Set,
     save: (set: Set<unknown>) => [...set],
-    load: (data: unknown[], value = new Set()) => {
-      value.clear();
-      for (const item of data) value.add(item);
-      return value;
+    load: (data: unknown[], set = new Set()) => {
+      set.clear();
+      for (const item of data) set.add(item);
+      return set;
     },
   },
 ] as Serializer[];

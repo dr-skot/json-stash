@@ -17,7 +17,7 @@ export function serialize(value: unknown, serializers: Serializer[] = []) {
   );
   if (!serializer) return value;
   return {
-    _stashType: serializer.key,
+    _stashType: getKey(serializer),
     data: serializer.save(value),
   };
 }
@@ -27,7 +27,7 @@ export function deserialize(
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => s.key === value._stashType);
+  const serializer = serializers.find((s) => getKey(s) === value._stashType);
   if (!serializer) {
     console.warn(`No serializer found for ${value._stashType}`);
     return value;
@@ -43,13 +43,16 @@ export function dereference(
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => s.key === spec._stashType);
+  const serializer = serializers.find((s) => getKey(s) === spec._stashType);
   const data = deref(spec.data);
-  // if (spec.data !== data)
   serializer?.load?.(data, value);
   return value;
 }
 
 export function defaultLoader(serializer: Serializer) {
   return (value: unknown[]) => new serializer.type(...value);
+}
+
+function getKey(serializer: Serializer) {
+  return serializer.key || serializer.type.name;
 }
