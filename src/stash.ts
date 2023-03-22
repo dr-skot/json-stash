@@ -1,12 +1,8 @@
-import { getRefSaver, getRefResolver, hasRefs, isRef } from "./ref";
-import {
-  dereference,
-  deserialize,
-  isDeserializable,
-  serialize,
-} from "./serialize";
-import { deepMap } from "./utils";
+import { getRefResolver, getRefSaver, hasRefs, isRef } from "./ref";
+import { reload, deserialize, isDeserializable, serialize } from "./serialize";
+import { deepForEach, deepMap, isPlainObject } from "./utils";
 import { Serializer } from "./serializers";
+import { getObjectEscaper, isEscaped } from "./escape";
 
 export type Stash = {
   $: any;
@@ -28,42 +24,54 @@ export function fromJSON(json: string, serializers?: Serializer[]) {
 
 function encode(stash: Stash, serializers?: Serializer[]): Stash {
   const saveRefs = getRefSaver();
-  return deepMap(
-    (value, path) => serialize(saveRefs(path, value), serializers),
-    {
-      depthFirst: false,
-      inPlace: false,
-    }
+  const { escape, unescapeAll } = getObjectEscaper();
+  const encoded = deepMap(
+    (value, path) => serialize(saveRefs(path, escape(value)), serializers),
+    { depthFirst: false, inPlace: false, avoidCircular: false }
   )(stash) as Stash;
+  unescapeAll();
+  return encoded;
 }
 
 function decode(stash: Stash, serializers?: Serializer[]): Stash {
   const refs = getRefResolver(stash);
+  const { findEscapes, unescapeAll } = getObjectEscaper();
 
-  // first pass: deserialize special types, note which ones need dereferencing
+  // first pass: deserialize special types, note which ones need dereferencing or unescaping
   const needsDeref: any[] = [];
+  const needsUnescape: any[] = [];
+
   stash = deepMap(
-    (v, path) => {
-      if (isRef(v)) return v;
-      if (isDeserializable(v)) {
+    (node, path) => {
+      findEscapes(node);
+      if (isRef(node)) return node;
+      if (isDeserializable(node)) {
         const deserialized = refs.registerValue(
-          deserialize(v, serializers),
+          deserialize(node, serializers),
           path
         );
-        if (hasRefs(v.data)) needsDeref.push([v, deserialized]);
+        if (hasRefs(node.data)) needsDeref.push([node, deserialized]);
+        else if (findEscapes(node.data))
+          needsUnescape.push([node, deserialized]);
         return refs.registerValue(deserialized, path);
       }
-      return refs.registerValue(v, path);
+      return refs.registerValue(node, path);
     },
-    { depthFirst: true, inPlace: false }
+    { depthFirst: true, inPlace: false, avoidCircular: false }
   )(stash) as Stash;
 
-  // second pass: resolve refs
+  // second pass: resolve refs, note which special types need unescaping
   refs.resolve(stash);
-  needsDeref.forEach(([spec, deserialized]) => {
-    // dereference(spec._stashType, deserialized, refs.resolve, serializers);
-    dereference(spec, deserialized, refs.resolve, serializers);
+  needsDeref.forEach(([node, deserialized]) => {
+    node = { ...node, data: refs.resolve(node.data) };
+    if (findEscapes(node.data)) needsUnescape.push([node, deserialized]);
+    reload(node, deserialized, serializers);
   });
 
+  // third pass: unescape
+  unescapeAll();
+  needsUnescape.forEach(([node, deserialized]) => {
+    reload(node, deserialized, serializers);
+  });
   return stash;
 }

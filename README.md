@@ -169,19 +169,6 @@ Other optional serializer properties are:
 with the same name, for example, you'll need to give them different `key`s to keep them straight
 - `test`: (optional) a predicate to detect this type of object. Defaults to `(x) => x instance of type`.
 
-## Caveats
-
-`stash` inserts special objects into the data structure to represent non-vanilla types and duplicate references.
-
-```typescript
-type NonPrimitive = { _stashType: string, data: any }
-type Ref = { _stashRef: string }
-```
-
-So if you have `_stashType` or `_stashRef` keys in your actual data, it will mess things up. 
-Presumably the likelihood of such a key collision is slim. Protecting against it is on the todo list.
-
 ## Todo
 
-- Support other common types
-- Protect against key collisions with `_stashType` and `_stashRef`
+- Support other common javascript types

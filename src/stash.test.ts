@@ -116,6 +116,18 @@ describe("stash", () => {
     expect(output).toEqual(input);
   });
 
+  it("handles object identity inside of Map", () => {
+    const singleton = { value: 5 };
+    const input = new Map([
+      ["a", singleton],
+      ["b", singleton],
+    ]);
+    expect(input.get("a")).toBe(input.get("b"));
+
+    const output = fromJSON(toJSON(input));
+    expect(output.get("a")).toBe(output.get("b"));
+  });
+
   it("handles object identity inside of Set", () => {
     const singleton = { value: 5 };
     const input = new Map([
@@ -128,16 +140,20 @@ describe("stash", () => {
     expect(output.get("a")).toBe(output.get("b"));
   });
 
-  it("handles object identity inside of non-primitives", () => {
-    const singleton = { value: 5 };
+  it("handles circular refs inside of Map", () => {
+    const armstrong: any = { buddy: null };
+    const aldrin = { buddy: armstrong };
+    armstrong.buddy = aldrin;
     const input = new Map([
-      ["a", singleton],
-      ["b", singleton],
+      ["armstrong", armstrong],
+      ["aldrin", aldrin],
     ]);
-    expect(input.get("a")).toBe(input.get("b"));
+    expect(input.get("armstrong").buddy).toBe(input.get("aldrin"));
+    expect(input.get("aldrin").buddy).toBe(input.get("armstrong"));
 
     const output = fromJSON(toJSON(input));
-    expect(output.get("a")).toBe(output.get("b"));
+    expect(output.get("armstrong").buddy).toBe(output.get("aldrin"));
+    expect(output.get("aldrin").buddy).toBe(output.get("armstrong"));
   });
 
   it("supports user-defined serializers", () => {
@@ -191,5 +207,33 @@ describe("stash", () => {
     expect(unstashed[0].type).toBe("MoonGuy");
     expect(unstashed[1].type).toBe("MoonGuy");
     expect(unstashed).toEqual(eagleCrew);
+  });
+
+  it("handles key collisions with _stashRef and _stashType", () => {
+    const fakeRef = {
+      _stashRef: 1,
+    };
+    const fakeType = {
+      _stashType: 2,
+    };
+    const fakeEscape = {
+      _stashEscape: 3,
+    };
+    // make one of them circular
+    (fakeRef as any).self = fakeRef;
+    const input = {
+      fakeRef,
+      map: new Map<string, any>([
+        ["a", fakeRef],
+        ["b", fakeType],
+        ["c", fakeEscape],
+      ]),
+    };
+    // I'm curious what the output of this would be
+    console.log(toJSON(input));
+    const output = fromJSON(toJSON(input));
+    expect(output.map.get("a")).toBe(output.fakeRef);
+    expect(output.fakeRef.self).toEqual(output.fakeRef);
+    expect(output).toEqual(input);
   });
 });

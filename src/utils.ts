@@ -18,9 +18,15 @@ export function eachValue(obj: object, fn: (v: unknown, k: string) => void) {
 
 export function deepMap(
   fn: (v: unknown, path: string) => unknown,
-  opts = { inPlace: true, depthFirst: true }
+  opts = { inPlace: true, depthFirst: true, avoidCircular: true }
 ) {
+  const seen = new WeakSet();
   function recurse(node: unknown, path: string): unknown {
+    // don't recurse infinitely on circular references
+    if (opts.avoidCircular && (isPlainObject(node) || Array.isArray(node))) {
+      if (seen.has(node)) return node;
+      seen.add(node);
+    }
     if (!opts.depthFirst) node = fn(node, path);
     if (Array.isArray(node)) {
       const array = opts.inPlace ? node : [...node];

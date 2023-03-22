@@ -1,5 +1,6 @@
-import { isPlainObject } from "./utils";
+import { hasOwnProperty, isPlainObject } from "./utils";
 import { DEFAULT_SERIALIZERS, Serializer } from "./serializers";
+import { isEscaped } from "./escape";
 
 export type Deserializable = {
   _stashType: string;
@@ -7,7 +8,11 @@ export type Deserializable = {
 };
 
 export function isDeserializable(value: unknown): value is Deserializable {
-  return isPlainObject(value) && "_stashType" in value;
+  return (
+    isPlainObject(value) &&
+    hasOwnProperty(value, "_stashType") &&
+    !isEscaped(value)
+  );
 }
 
 export function serialize(value: unknown, serializers: Serializer[] = []) {
@@ -36,15 +41,14 @@ export function deserialize(
   return load(value.data as any);
 }
 
-export function dereference(
+export function reload(
   spec: Deserializable,
   value: unknown,
-  deref: (value: unknown) => unknown,
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
   const serializer = serializers.find((s) => getKey(s) === spec._stashType);
-  const data = deref(spec.data);
+  const data = spec.data;
   serializer?.load?.(data, value);
   return value;
 }
