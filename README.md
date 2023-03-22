@@ -1,6 +1,9 @@
 # json-stash
 
-Serialize and deserialize javascript data to/from JSON. Supports `Date`, `RegExp`, `Map`, `Set`, and circular references.
+Serialize and deserialize javascript data to/from JSON. 
+- handles circular and duplicate references
+- supports `Date`, `RegExp`, `Map`, and `Set` out of the box
+- supports user-defined types
 
 ## Installation
 
@@ -51,10 +54,10 @@ leaders3p = { // per-game stats
     made: curry,
     pct: kerr,
 }
-// note that leaders3p.attempts === leaders3p.made
+// leaders3p.attempts === leaders3p.made
 
 unstringified = JSON.parse(JSON.stringify(leaders3p));
-// unstringified.attempts.name === unstringified.made.name, but
+// unstringified.attempts.name === unstringified.made.name
 // unstringified.attempts !== unstringified.made
 
 unstashed = unstash(stash(leaders3p));
@@ -117,56 +120,54 @@ const unstashed = unstash(stashed, [moonGuySerializer]);
 // ]
 ```
 
-The properties of a serializer are
-
-- `type`: the type of objects to serialize, detected by `(x) => x instance of type`—but if that's not the right test, 
-you can define a custom `test` function (see below)
-
-- `key`: a unique identifier for the type. Defaults to `type.name`
-
-- `test`: (optional) a custom test to detect this type of object. Defaults to `(x) => x instance of type`.
-
-- `save`: returns data that when passed to `load` will reconstruct the object. Ordinarily this is an array of arguments 
-to be passed to `new type`
-
-- `load`: (optional) reconstructs the object using the data returned by `save`. 
-Defaults to `(data) => new type(...data)`. If your object might contain other objects,
-`load` should take an optional second argument, which might contain an existing object to populate;
-if no such object is passed, `load` should create a new one. This is necessary to resolve duplicate 
-or circular references.
-
-To illustrate how it works, here are the serializers for `Date`, `RegExp`, `Map`, and `Set`
+The simplest serializer is just a type and a save function. The `type` is a class (or constructor function), 
+and `save` returns an array of arguments to be passed to `new type` to reconstruct the object.
+Here is the built-in `RegExp` serializer, for example:
 
 ```typescript
-const DEFAULT_SERIALIZERS = [
-  {
-    type: Date,
-    save: (value: Date) => [value.toISOString()],
-  },
-  {
-    type: RegExp,
-    save: (value: RegExp) => [value.source, value.flags],
-  },
-  {
-    type: Map,
-    save: (map: Map<unknown, unknown>) => [...map],
-    load: (data: [unknown, unknown][], map = new Map()) => {
-      map.clear();
-      for (const [k, v] of data) map.set(k, v);
-      return map;
-    },
-  },
-  {
-    type: Set,
-    save: (set: Set<unknown>) => [...set],
-    load: (data: unknown[], set = new Set()) => {
-      set.clear();
-      for (const item of data) set.add(item);
-      return set;
-    },
-  },
-] as Serializer[];
+const regExpSerializer = {
+  type: RegExp,
+  save: (value: RegExp) => [value.source, value.flags],
+};
 ```
+
+If your object can contain other objects, you'll also need to define a `load` function. The load function takes 
+two arguments: 
+- `data` the value returned by `save`
+- `existing` (optional) an existing object to populate
+
+The first time `load` is called, 
+- `data` may contain unresolved object placeholders
+- `existing` will be undefined; `load` should return a new object
+
+If there were unresolved placeholders the first time, `load` will be called a second time with all placeholders
+resolved in `data` and `existing` set to the object returned by the first call.
+`load` should then populate `existing` with the new data.
+
+Here is the built-in `Map` serializer, for example:
+
+```typescript
+const mapSerializer = {
+  type: Map,
+  save: (map: Map<unknown, unknown>) => [...map],
+  load: (data: [unknown, unknown][], map = new Map()) => {
+    map.clear();
+    for (const [k, v] of data) map.set(k, v);
+    return map;
+  },
+};
+```
+
+This double-pass approach is necessary to handle circular references.
+
+You may need a custom `load` function anyway, if reconstructing your object is more complicated than passing
+what's returned by `save` to `new type`.
+
+Other optional serializer properties are:
+
+- `key`: (optional) a unique string identifier for the type. Defaults to `type.name`. If you have types from different packages
+with the same name, for example, you'll need to give them different `key`s to keep them straight
+- `test`: (optional) a predicate to detect this type of object. Defaults to `(x) => x instance of type`.
 
 ## Caveats
 
