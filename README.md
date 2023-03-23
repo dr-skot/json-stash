@@ -198,3 +198,4 @@ Other optional serializer properties are:
 ## Todo
 
 - Support other common javascript types
+- Output helpful messages when errors happen
