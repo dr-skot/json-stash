@@ -1,6 +1,6 @@
 # json-stash
 
-Serialize and deserialize javascript data to and from JSON. 
+Serialize javascript data to JSON. Like `JSON.stringify`, but better.
 - handles circular and duplicate references
 - supports `Date`, `RegExp`, `Map`, and `Set` out of the box
 - supports user-defined types
