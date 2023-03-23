@@ -1,6 +1,6 @@
 {
   "name": "json-stash",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "serialize and deserialize javascript objects to json",
   "main": "dist/index.js",
   "scripts": {
