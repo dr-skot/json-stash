@@ -1,5 +1,5 @@
 import { deepForEach, deepMap, hasOwnProperty, isPlainObject } from "./utils";
-import { Stash } from "./stash";
+import { StashRoot } from "./stash";
 import { isEscaped } from "./escape";
 
 // a ref is a placeholder for an object that occurs elsewhere in the stash
@@ -42,7 +42,7 @@ export function getRefSaver(): RefSaver {
   return refSaver;
 }
 
-export function getRefResolver(root: Stash) {
+export function getRefResolver(root: StashRoot) {
   const refs = new Map<string, unknown>();
   let refState: "unresolved" | "resolving" | "resolved" = "unresolved";
 

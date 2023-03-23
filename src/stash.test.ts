@@ -1,4 +1,4 @@
-import { fromJSON, toJSON } from "./stash";
+import { unstash, stash } from "./stash";
 
 function expectStringifyToFail(input: unknown) {
   const output = JSON.parse(JSON.stringify(input));
@@ -10,7 +10,7 @@ function expectStringifyToThrow(input: unknown) {
 }
 
 function expectStashToSucceed(input: unknown) {
-  const output = fromJSON(toJSON(input));
+  const output = unstash(stash(input));
   expect(output).toEqual(input);
 }
 
@@ -48,8 +48,8 @@ describe("stash", () => {
       false,
     ];
     inputs.forEach((input) => {
-      expect(toJSON(input)).toEqual(JSON.stringify(input));
-      expect(fromJSON(toJSON(input))).toEqual(input);
+      expect(stash(input)).toEqual(JSON.stringify(input));
+      expect(unstash(stash(input))).toEqual(input);
     });
   });
 
@@ -59,7 +59,7 @@ describe("stash", () => {
     expect(input.same).toBe(input.orig);
     expect(input.copied).not.toBe(input.orig);
     // stash maintains identity of orig and same
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output.same).toBe(output.orig);
     expect(output.copied).not.toBe(output.orig);
     // JSON stringify doesn't do this
@@ -72,7 +72,7 @@ describe("stash", () => {
     input.self = input;
     expectStringifyToThrow(input); // JSON stringify chokes
 
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output).toEqual(input);
     expect(output.self).toBe(output);
 
@@ -80,21 +80,21 @@ describe("stash", () => {
     const input2 = { a: 1, b: [4, 5, input], c: undefined };
     expectStringifyToThrow(input); // JSON stringify chokes
 
-    const output2 = fromJSON(toJSON(input2));
+    const output2 = unstash(stash(input2));
     expect(output2).toEqual(input2);
     expect(output2.b[2]).toBe(output2.b[2].self);
   });
 
   it("serializes Date objects", () => {
     const input = new Date();
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output).toBeInstanceOf(Date);
     expect(output).toEqual(input);
   });
 
   it("serializes RegExp objects", () => {
     const input = /foo/gi;
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output).toBeInstanceOf(RegExp);
     expect(output).toEqual(input);
   });
@@ -104,14 +104,14 @@ describe("stash", () => {
       ["a", 1],
       ["b", 2],
     ]);
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output).toBeInstanceOf(Map);
     expect(output).toEqual(input);
   });
 
   it("serializes Set objects", () => {
     const input = new Set(["Armstrong", "Aldrin", "Collins"]);
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output).toBeInstanceOf(Set);
     expect(output).toEqual(input);
   });
@@ -124,7 +124,7 @@ describe("stash", () => {
     ]);
     expect(input.get("a")).toBe(input.get("b"));
 
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output.get("a")).toBe(output.get("b"));
   });
 
@@ -136,7 +136,7 @@ describe("stash", () => {
     ]);
     expect(input.get("a")).toBe(input.get("b"));
 
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output.get("a")).toBe(output.get("b"));
   });
 
@@ -151,7 +151,7 @@ describe("stash", () => {
     expect(input.get("armstrong").buddy).toBe(input.get("aldrin"));
     expect(input.get("aldrin").buddy).toBe(input.get("armstrong"));
 
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output.get("armstrong").buddy).toBe(output.get("aldrin"));
     expect(output.get("aldrin").buddy).toBe(output.get("armstrong"));
   });
@@ -174,8 +174,8 @@ describe("stash", () => {
 
     const eagleCrew = [new MoonGuy("Armstrong", 1), new MoonGuy("Aldrin", 2)];
 
-    const stashed = toJSON(eagleCrew, [moonGuySerializer]);
-    const unstashed = fromJSON(stashed, [moonGuySerializer]);
+    const stashed = stash(eagleCrew, [moonGuySerializer]);
+    const unstashed = unstash(stashed, [moonGuySerializer]);
 
     expect(unstashed[0]).toBeInstanceOf(MoonGuy);
     expect(unstashed[1]).toBeInstanceOf(MoonGuy);
@@ -201,8 +201,8 @@ describe("stash", () => {
 
     const eagleCrew = [makeMoonGuy("Armstrong", 1), makeMoonGuy("Aldrin", 2)];
 
-    const stashed = toJSON(eagleCrew, [moonGuySerializer]);
-    const unstashed = fromJSON(stashed, [moonGuySerializer]);
+    const stashed = stash(eagleCrew, [moonGuySerializer]);
+    const unstashed = unstash(stashed, [moonGuySerializer]);
 
     expect(unstashed[0].type).toBe("MoonGuy");
     expect(unstashed[1].type).toBe("MoonGuy");
@@ -231,7 +231,7 @@ describe("stash", () => {
       ]),
     };
 
-    const output = fromJSON(toJSON(input));
+    const output = unstash(stash(input));
     expect(output.map.get("a")).toBe(output.fakeRef);
     expect(output.fakeRef.self).toEqual(output.fakeRef);
     expect(output).toEqual(input);

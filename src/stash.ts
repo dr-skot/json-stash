@@ -4,44 +4,44 @@ import { deepMap } from "./utils";
 import { Serializer } from "./serializers";
 import { getObjectEscaper } from "./escape";
 
-export type Stash = {
+export type StashRoot = {
   $: any;
 };
 
-export function toJSON(data: unknown, serializers?: Serializer[]) {
-  const stash = encode({ $: data }, serializers);
-  return JSON.stringify(stash.$);
+export function stash(data: unknown, serializers?: Serializer[]) {
+  const root = encode({ $: data }, serializers);
+  return JSON.stringify(root.$);
 }
 
-export function fromJSON(json: string, serializers?: Serializer[]) {
-  const stash = { $: JSON.parse(json) };
-  return decode(stash, serializers).$;
+export function unstash(json: string, serializers?: Serializer[]) {
+  const root = { $: JSON.parse(json) };
+  return decode(root, serializers).$;
 }
 
 //
 // internals
 //
 
-function encode(stash: Stash, serializers?: Serializer[]): Stash {
+function encode(root: StashRoot, serializers?: Serializer[]): StashRoot {
   const saveRefs = getRefSaver();
   const { escape, unescapeAll } = getObjectEscaper();
   const encoded = deepMap(
     (value, path) => serialize(saveRefs(path, escape(value)), serializers),
     { depthFirst: false, inPlace: false, avoidCircular: false }
-  )(stash) as Stash;
+  )(root) as StashRoot;
   unescapeAll();
   return encoded;
 }
 
-function decode(stash: Stash, serializers?: Serializer[]): Stash {
-  const refs = getRefResolver(stash);
+function decode(root: StashRoot, serializers?: Serializer[]): StashRoot {
+  const refs = getRefResolver(root);
   const { findEscapes, unescapeAll } = getObjectEscaper();
 
   // first pass: deserialize special types, note which ones need dereferencing or unescaping
   const needsDeref: any[] = [];
   const needsUnescape: any[] = [];
 
-  stash = deepMap(
+  root = deepMap(
     (node, path) => {
       findEscapes(node);
       if (isRef(node)) return node;
@@ -59,10 +59,10 @@ function decode(stash: Stash, serializers?: Serializer[]): Stash {
       return refs.registerValue(node, path);
     },
     { depthFirst: true, inPlace: false, avoidCircular: false }
-  )(stash) as Stash;
+  )(root) as StashRoot;
 
-  // second pass: resolve refs, note which special types need unescaping
-  refs.resolve(stash);
+  // second pass: resolve refs, note which deserialized objects need unescaping
+  refs.resolve(root);
   needsDeref.forEach(([node, deserialized]) => {
     node = { ...node, data: refs.resolve(node.data) };
     if (findEscapes(node.data)) needsUnescape.push([node, deserialized]);
@@ -74,5 +74,6 @@ function decode(stash: Stash, serializers?: Serializer[]): Stash {
   needsUnescape.forEach(([node, deserialized]) => {
     reload(node, deserialized, serializers);
   });
-  return stash;
+
+  return root;
 }

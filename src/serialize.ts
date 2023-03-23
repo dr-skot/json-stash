@@ -28,17 +28,17 @@ export function serialize(value: unknown, serializers: Serializer[] = []) {
 }
 
 export function deserialize(
-  value: Deserializable,
+  spec: Deserializable,
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => getKey(s) === value._stashType);
+  const serializer = serializers.find((s) => getKey(s) === spec._stashType);
   if (!serializer) {
-    console.warn(`No serializer found for ${value._stashType}`);
-    return value;
+    console.warn(`No serializer found for ${spec._stashType}`);
+    return spec;
   }
   const load = serializer.load || defaultLoader(serializer);
-  return load(value.data as any);
+  return load(spec.data as any);
 }
 
 export function reload(
