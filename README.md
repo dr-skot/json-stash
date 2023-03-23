@@ -1,6 +1,6 @@
 # json-stash
 
-Serialize and deserialize javascript data to/from JSON. 
+Serialize and deserialize javascript data to and from JSON. 
 - handles circular and duplicate references
 - supports `Date`, `RegExp`, `Map`, and `Set` out of the box
 - supports user-defined types
@@ -54,14 +54,14 @@ stash(egoist);
 // '{"preoccupation":{"_stashRef":"$"}}'
 
 unstash(stash(egoist));
-// <ref *1> { preoccupation: [Circular *1]
+// <ref *1> { preoccupation: [Circular *1] }
 ```
 
 ### In other words, identical objects
 
 Circular references are a special case of identical objects. 
-When data contains multiple references to the same object, `stash`
-maintains those identities. `JSON.stringify` doesn't
+When the input contains multiple references to the same object, `stash`
+maintains those identities. `JSON.stringify` doesn't.
 
 ```javascript
 steph = { name: 'Curry' };
@@ -71,7 +71,7 @@ steve = { name: 'Kerr' };
 threes = { shot: steph, made: steph, pct: steve }
 
 unstringified = JSON.parse(JSON.stringify(threes));
-// `shot` and `made` are duplicates
+// `shot` and `made` are different objects
 expect(unstringified.shot).not.toBe(unstringified.made);
 
 unstashed = unstash(stash(threes));
@@ -160,7 +160,7 @@ The first time `load` is called,
 
 If there were unresolved placeholders the first time, `load` will be called a second time:
 - `data` will have all its placeholders resolved 
-- `existing` will contain the object returned by the first call, and `load` should repopulate it with the new data.
+- `existing` will contain the object returned by the first call, and `load` should repopulate it with the new data
 
 This double-pass approach is necessary to handle circular references.
 
@@ -191,7 +191,7 @@ arguments to `new type`.
 
 Other optional serializer properties are:
 
-- `test`: a test to detect objects of this type. Defaults to `(x) => x instance of type`
+- `test`: a function that detects objects of this type. Defaults to `(x) => x instance of type`
 - `key`: a unique string identifier for this type. Defaults to `type.name`. If you have types with the same `type.name` 
 (because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
 
