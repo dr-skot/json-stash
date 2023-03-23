@@ -3,13 +3,13 @@ export function isPlainObject(value: unknown): value is object {
 }
 
 export function deepForEach(fn: (v: unknown) => void) {
-  function recurse(node: unknown): void {
-    fn(node);
-    if (Array.isArray(node)) node.forEach(recurse);
-    if (isPlainObject(node)) eachValue(node, recurse);
-  }
-
-  return recurse;
+  return deepMap(
+    (node) => {
+      fn(node);
+      return node;
+    },
+    { inPlace: true, depthFirst: false, avoidCircular: true }
+  );
 }
 
 export function eachValue(obj: object, fn: (v: unknown, k: string) => void) {
