@@ -81,7 +81,7 @@ expect(unstashed.shot).toBe(unstashed.made);
 
 ### Non-vanilla types
 
-`JSON.stringify/parse` doesn't support non-vanilla data. `Date`s get converted to strings, and most other objects become `{}`.
+`JSON.stringify` doesn't support non-vanilla data. `Date`s get converted to strings, and most other objects become `{}`.
 
 ```javascript
 JSON.parse(JSON.stringify(new Date("1969-07-21T02:56Z")))
@@ -94,7 +94,7 @@ JSON.parse(JSON.stringify({ collect: /rock/g }));
 // { collect: {} }
 ```
 
-`json-stash` supports `Date`, `RegExp`, `Map`, and `Set` out of the box.
+`stash` supports `Date`, `RegExp`, `Map`, and `Set` out of the box.
 
 ```javascript
 unstash(stash(new Date("1969-07-21T02:56Z")))
@@ -148,6 +148,8 @@ const serializers = [{
   save: (regex: RegExp) => [regex.source, regex.flags],
 }];
 ```
+
+Note that `save` must return data that can be serialized and deserialized with `JSON.stringify/parse`.
 
 If your object can contain other objects, you'll also need to define a `load` function. The load function takes 
 two arguments: 
