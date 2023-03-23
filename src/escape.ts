@@ -34,12 +34,12 @@ function unescapeObject(value: unknown) {
 
 // an object escaper keeps track of escaped objects, so you can unescape them when you're done
 export function getObjectEscaper() {
-  const seen = new Set();
+  const cache = new Set();
   function escape(value: unknown) {
     if (!isPlainObject(value)) return value;
     if (!Object.keys(value).some(keyIsUnsafe)) return value;
-    if (seen.has(value)) return value;
-    seen.add(value);
+    if (cache.has(value)) return value;
+    cache.add(value);
     return escapeObject(value);
   }
   function findEscapes(value: unknown) {
@@ -47,7 +47,7 @@ export function getObjectEscaper() {
     deepMap(
       (node) => {
         if (isPlainObject(node) && isEscaped(node)) {
-          seen.add(node);
+          cache.add(node);
           result = true;
         }
         return node;
@@ -58,7 +58,8 @@ export function getObjectEscaper() {
   }
 
   function unescapeAll() {
-    seen.forEach((value) => unescapeObject(value));
+    cache.forEach(unescapeObject);
+    cache.clear();
   }
 
   return { escape, findEscapes, unescapeAll };
