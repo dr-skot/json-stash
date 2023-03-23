@@ -73,4 +73,75 @@ describe("the README examples", () => {
 
     // end README text
   });
+
+  it("explains how duplicate references are rendered", () => {
+    let egoist: any, vipList;
+
+    // README text
+
+    egoist = {};
+    egoist.preoccupation = egoist;
+    vipList = [egoist, egoist];
+
+    stash(vipList);
+    // '[{"preoccupation":{"_stashRef":"$.0"}},{"_stashRef":"$.0"}]'
+
+    // end README text
+
+    expect(stash(vipList)).toEqual(
+      '[{"preoccupation":{"_stashRef":"$.0"}},{"_stashRef":"$.0"}]'
+    );
+  });
+
+  it("explains how special types are rendered", () => {
+    // README text
+
+    stash(/rock/g);
+    // '{"_stashType":"RegExp","data":["rock","g"]}'
+
+    // end README text
+    expect(stash(/rock/g)).toEqual(
+      '{"_stashType":"RegExp","data":["rock","g"]}'
+    );
+  });
+
+  it("explains escaping", () => {
+    // README text
+    stash({ _stashRef: "fake" });
+    // '{"_stashRef":"fake","_stashEscape":true}'
+    stash({ _stashType: "bogus" });
+    // '"{\"_stashType\":\"bogus\",\"_stashEscape\":true}"
+    // end README text
+    expect(stash({ _stashRef: "fake" })).toBe(
+      '{"_stashRef":"fake","_stashEscape":true}'
+    );
+    expect(stash({ _stashType: "bogus" })).toBe(
+      '{"_stashType":"bogus","_stashEscape":true}'
+    );
+  });
+
+  it("explains escaping _stashEscape", () => {
+    // README text
+
+    stash({ _stashEscape: false });
+    // '{"_stashEscape":false,"__stashEscape":true}'
+
+    stash({ _stashEscape: false, __stashEscape: null });
+    // '{"_stashEscape":false,"__stashEscape":null,"___stashEscape":true}'
+
+    unstash(stash({ _stashEscape: false }));
+    // { _stashEscape: false }
+
+    // end README text
+
+    expect(stash({ _stashEscape: false })).toBe(
+      '{"_stashEscape":false,"__stashEscape":true}'
+    );
+    expect(stash({ _stashEscape: false, __stashEscape: null })).toBe(
+      '{"_stashEscape":false,"__stashEscape":null,"___stashEscape":true}'
+    );
+    expect(unstash(stash({ _stashEscape: false }))).toEqual({
+      _stashEscape: false,
+    });
+  });
 });

@@ -213,10 +213,62 @@ const unstashed = unstash(stash(eagleCrew));
 
 The most recently added serializers have priority, so you can override previous or built-in ones.
 
+## How it works
+
+Rereferenced objects are rendered as `{ _stashRef: "$.path.to.object" }`.
+
+```javascript
+egoist = {};
+egoist.preoccupation = egoist;
+vipList = [egoist, egoist];
+
+stash(vipList);
+// '[{"preoccupation":{"_stashRef":"$.0"}},{"_stashRef":"$.0"}]'
+```
+
+Special types are rendered as `{ _stashType: "type", data: "json" }`.
+
+```javascript
+stash(/rock/g);
+// '{"_stashType":"RegExp","data":["rock","g"]}'
+```
+
+`stash` detects a special type when an object passes some serializer's `test` function, 
+and passes the object to `serializer.save` to get the `data`.
+
+`unstash` finds the serializer with a `key` of `_stashType` and passes the `data` to `serializer.load` 
+to reconstruct the object.
+
+In the unlikely event that your input contains `_stashRef` or `_stashType` properties,
+`stash` will escape them.
+
+```javascript
+stash({ _stashRef: "fake" }); 
+// '{"_stashRef":"fake","_stashEscape":true}'
+
+stash({ _stashType: "bogus" });
+// '"{\"_stashType\":\"bogus\",\"_stashEscape\":true}"
+
+unstash(stash({ _stashRef: "fake" }));
+// { _stashRef: "fake" }
+```
+
+If your input contains `_stashEscape` properties, `stash` can deal with that too.
+
+```javascript
+stash({ _stashEscape: false });
+// '{"_stashEscape":false,"__stashEscape":true}'
+
+stash({ _stashEscape: false, __stashEscape: null});
+// '{"_stashEscape":false,"__stashEscape":null,"___stashEscape":true}'
+
+unstash(stash({ _stashEscape: false }));
+// { _stashEscape: false }
+```
+
 ## Todo
 
 - Support other common javascript types
 - Log helpful messages when errors happen
 - Do typescript better
-- Explain output format of `stash` in this document
 - Add a changelog
