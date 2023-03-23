@@ -209,7 +209,7 @@ describe("stash", () => {
     expect(unstashed).toEqual(eagleCrew);
   });
 
-  it("handles key collisions with _stashRef and _stashType", () => {
+  it("handles objects with _stashRef, _stashType and _stashEscape keys", () => {
     const fakeRef = {
       _stashRef: 1,
     };
@@ -221,6 +221,7 @@ describe("stash", () => {
     };
     // make one of them circular
     (fakeRef as any).self = fakeRef;
+
     const input = {
       fakeRef,
       map: new Map<string, any>([
@@ -229,8 +230,7 @@ describe("stash", () => {
         ["c", fakeEscape],
       ]),
     };
-    // I'm curious what the output of this would be
-    console.log(toJSON(input));
+
     const output = fromJSON(toJSON(input));
     expect(output.map.get("a")).toBe(output.fakeRef);
     expect(output.fakeRef.self).toEqual(output.fakeRef);
