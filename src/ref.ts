@@ -16,6 +16,7 @@ export function isRef(value: unknown): value is Ref {
   );
 }
 
+// not safe with circular objects
 export function hasRefs(value: unknown) {
   let result = false;
   deepForEach((node) => {
@@ -46,6 +47,7 @@ export function getRefResolver(root: Stash) {
   let refState: "unresolved" | "resolving" | "resolved" = "unresolved";
 
   // find all the ref paths in the object
+  // root is just-parsed JSON, so no need to worry about circular refs
   deepForEach((node) => {
     if (isRef(node) && !refs.has(node._stashRef)) {
       refs.set(node._stashRef, node);

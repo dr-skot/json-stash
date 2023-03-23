@@ -1,8 +1,8 @@
 import { getRefResolver, getRefSaver, hasRefs, isRef } from "./ref";
 import { reload, deserialize, isDeserializable, serialize } from "./serialize";
-import { deepForEach, deepMap, isPlainObject } from "./utils";
+import { deepMap } from "./utils";
 import { Serializer } from "./serializers";
-import { getObjectEscaper, isEscaped } from "./escape";
+import { getObjectEscaper } from "./escape";
 
 export type Stash = {
   $: any;
@@ -50,6 +50,7 @@ function decode(stash: Stash, serializers?: Serializer[]): Stash {
           deserialize(node, serializers),
           path
         );
+        // node.data is just-parsed JSON, so no need to worry about circular refs
         if (hasRefs(node.data)) needsDeref.push([node, deserialized]);
         else if (findEscapes(node.data))
           needsUnescape.push([node, deserialized]);

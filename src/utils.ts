@@ -2,14 +2,15 @@ export function isPlainObject(value: unknown): value is object {
   return value?.constructor === Object;
 }
 
+// breadth-first traversal, no protection against circular references
 export function deepForEach(fn: (v: unknown) => void) {
-  return deepMap(
-    (node) => {
-      fn(node);
-      return node;
-    },
-    { inPlace: true, depthFirst: false, avoidCircular: true }
-  );
+  function recurse(node: unknown): void {
+    fn(node);
+    if (Array.isArray(node)) node.forEach(recurse);
+    if (isPlainObject(node)) eachValue(node, recurse);
+  }
+
+  return recurse;
 }
 
 export function eachValue(obj: object, fn: (v: unknown, k: string) => void) {

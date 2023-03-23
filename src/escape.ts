@@ -1,4 +1,4 @@
-import { deepForEach, deepMap, hasOwnProperty, isPlainObject } from "./utils";
+import { deepMap, hasOwnProperty, isPlainObject } from "./utils";
 
 // a data object that happens to have keys _stashRef, _stashType, or _stashEscape
 // needs to be escaped so stash doesn't mistakenly try to dereference or deserialize or unescape it
