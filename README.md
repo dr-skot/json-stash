@@ -125,15 +125,25 @@ const moonGuySerializer = {
   save: (guy) => [guy.name, guy.order],
 };
 
-const eagleCrew = [new MoonGuy('Armstrong', 1), new MoonGuy('Aldrin', 2)];
+armstrong = new MoonGuy('Armstrong', 'first');
 
-const stashed = stash(eagleCrew, [moonGuySerializer]);
+const stashed = stash(armstrong, [moonGuySerializer]);
 const unstashed = unstash(stashed, [moonGuySerializer]);
-// [ 
-//   MoonGuy { name: 'Armstrong', order: 1 },
-//   MoonGuy { name: 'Aldrin', order: 2 }
-// ]
+// MoonGuy { name: 'Armstrong', order: 'first' },
 ```
+
+If you don't want to pass serializers with every call to `stash` and `unstash`,
+you can add them globally.
+
+```typescript
+import { addSerializers } from 'json-stash';
+
+addSerializers([moonGuySerializer]);
+unstash(stash(armstrong));
+// MoonGuy { name: 'Armstrong', order: 'first' },
+```
+
+The most recently added serializers have priority, so you can override previous or built-in ones.
 
 The simplest serializer is just a `type` and a `save` function. The `type` is a class constructor, 
 and `save` returns an array of arguments to be passed to `type` by calling `new type(...args)`.
@@ -197,21 +207,6 @@ Other optional serializer properties are:
 - `key`: a unique string identifier for this type. Defaults to `type.name`. If you have types with the same `type.name` 
 (because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
 
-If you don't want to pass serializers with every call to `stash` and `unstash`, 
-you can add them globally.
-
-```typescript
-import { addSerializers } from 'json-stash';
-
-addSerializers([moonGuySerializer]);
-const unstashed = unstash(stash(eagleCrew));
-// [
-//   MoonGuy { name: 'Armstrong', order: 1 },
-//   MoonGuy { name: 'Aldrin', order: 2 }
-// ]
-```
-
-The most recently added serializers have priority, so you can override previous or built-in ones.
 
 ## How it works
 
