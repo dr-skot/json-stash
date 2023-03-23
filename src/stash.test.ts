@@ -1,4 +1,5 @@
 import { unstash, stash } from "./stash";
+import { addSerializers } from "./serializers";
 
 function expectStringifyToFail(input: unknown) {
   const output = JSON.parse(JSON.stringify(input));
@@ -235,5 +236,34 @@ describe("stash", () => {
     expect(output.map.get("a")).toBe(output.fakeRef);
     expect(output.fakeRef.self).toEqual(output.fakeRef);
     expect(output).toEqual(input);
+  });
+});
+
+describe("addSerializers", () => {
+  it("adds a serializer to the default set", () => {
+    class MoonGuy {
+      name: string;
+      order: number;
+      constructor(name: string, order: number) {
+        this.name = name;
+        this.order = order;
+      }
+    }
+
+    const moonGuySerializer = {
+      type: MoonGuy,
+      key: "MoonGuy",
+      save: (guy: MoonGuy) => [guy.name, guy.order],
+    };
+
+    const eagleCrew = [new MoonGuy("Armstrong", 1), new MoonGuy("Aldrin", 2)];
+
+    addSerializers([moonGuySerializer]);
+
+    const unstashed = unstash(stash(eagleCrew));
+
+    expect(unstashed[0]).toBeInstanceOf(MoonGuy);
+    expect(unstashed[1]).toBeInstanceOf(MoonGuy);
+    expect(unstashed).toEqual(eagleCrew);
   });
 });

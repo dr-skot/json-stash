@@ -197,8 +197,26 @@ Other optional serializer properties are:
 - `key`: a unique string identifier for this type. Defaults to `type.name`. If you have types with the same `type.name` 
 (because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
 
+If you don't want to pass serializers with every call to `stash` and `unstash`, 
+you can add them globally.
+
+```typescript
+import { addSerializers } from 'json-stash';
+
+addSerializers([moonGuySerializer]);
+const unstashed = unstash(stash(eagleCrew));
+// [
+//   MoonGuy { name: 'Armstrong', order: 1 },
+//   MoonGuy { name: 'Aldrin', order: 2 }
+// ]
+```
+
+The most recently added serializers have priority, so you can override previous or built-in ones.
+
 ## Todo
 
 - Support other common javascript types
-- Output helpful messages when errors happen
+- Log helpful messages when errors happen
 - Do typescript better
+- Explain output format of `stash` in this document
+- Add a changelog

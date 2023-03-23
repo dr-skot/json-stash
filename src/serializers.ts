@@ -47,3 +47,8 @@ export const DEFAULT_SERIALIZERS = [
     },
   },
 ] as Serializer[];
+
+// support adding custom serializers to the default list
+export function addSerializers(serializers: Serializer[]) {
+  DEFAULT_SERIALIZERS.splice(0, 0, ...serializers);
+}
