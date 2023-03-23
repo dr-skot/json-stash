@@ -136,7 +136,7 @@ const unstashed = unstash(stashed, [moonGuySerializer]);
 ```
 
 The simplest serializer is just a `type` and a `save` function. The `type` is a class constructor, 
-and `save` returns an array of arguments to be passed to it by calling `new type(...args)`.
+and `save` returns an array of arguments to be passed to `type` by calling `new type(...args)`.
 For example, here are the built-in serializers for `Date` and `RegExp`:
 
 ```typescript
