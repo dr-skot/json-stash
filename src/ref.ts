@@ -28,13 +28,13 @@ export function hasRefs(value: unknown) {
 // returns a ref; otherwise returns the value
 type RefSaver = (path: string, value: unknown) => unknown;
 export function getRefSaver(): RefSaver {
-  const seen: Record<string, object> = {};
+  const cache = new WeakMap<object, string>();
 
   function refSaver(path: string, value: unknown) {
     if (value === null || typeof value !== "object") return value;
-    const found = Object.entries(seen).find(([, v]) => v === value);
-    if (found) return { _stashRef: found[0] };
-    seen[path] = value;
+    const refPath = cache.get(value);
+    if (refPath) return { _stashRef: refPath };
+    cache.set(value, path);
     return value;
   }
 
@@ -42,40 +42,24 @@ export function getRefSaver(): RefSaver {
 }
 
 export function getRefResolver(root: Stash) {
-  const refs: Record<string, unknown> = {};
+  const refs = new Map<string, unknown>();
   let refState: "unresolved" | "resolving" | "resolved" = "unresolved";
 
   // find all the ref paths in the object
-  deepForEach((v) => {
-    const path = (v as Ref)?._stashRef;
-    if (path && !refs[path]) refs[path] = v;
+  deepForEach((node) => {
+    if (isRef(node) && !refs.has(node._stashRef)) {
+      refs.set(node._stashRef, node);
+    }
   })(root);
 
   // assign a value to a ref, if a ref to the path exists
   function registerValue(value: unknown, path: string) {
-    if (hasOwnProperty(refs, path)) refs[path] = value;
+    if (refs.has(path)) refs.set(path, value);
     return value;
   }
 
-  function insureResolvedRoot() {
-    if (refState !== "unresolved") return;
-    refState = "resolving";
-    deepMap(
-      (node) => {
-        return isRef(node) ? refs[node._stashRef] : node;
-      },
-      { depthFirst: true, inPlace: true, avoidCircular: false }
-    )(root);
-    refState = "resolved";
-  }
-
   const resolve = deepMap(
-    (node) => {
-      // insureResolvedRoot();
-      const derefNode = isRef(node) ? refs[node._stashRef] : node;
-      // return unescapeKeys(derefNode);
-      return derefNode;
-    },
+    (node) => (isRef(node) ? refs.get(node._stashRef) : node),
     { depthFirst: true, inPlace: true, avoidCircular: false }
   );
 
