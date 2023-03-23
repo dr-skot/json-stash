@@ -199,3 +199,4 @@ Other optional serializer properties are:
 
 - Support other common javascript types
 - Output helpful messages when errors happen
+- Do typescript better
