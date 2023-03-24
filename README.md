@@ -28,13 +28,13 @@ expect(unstashed).toEqual(anything);
 When used on vanilla objects, `stash` is equivalent to `JSON.stringify`
 
 ```javascript
-armstrong = { name: "Neil", apollo: 11, steps: ["small", "giant"] };
+dude = { name: "Dude", heads: 1, legs: ["left", "right"] };
 
-JSON.stringify(armstrong);
-// '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+JSON.stringify(dude);
+// '{"name":"Dude","heads":1,"legs":["left","right"]}'
 
-stash(armstrong);
-// '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+stash(dude);
+// '{"name":"Dude","heads":1,"legs":["left","right"]}'
 ```
 
 ## Only better
@@ -107,7 +107,7 @@ You can support other types by adding your own serializers. See [User-defined ty
 
 ## How it works
 
-Rereferenced objects are rendered as `{ $ref: "$.path.to.object" }`.
+Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
 
 ```javascript
 egoist = {};
@@ -118,18 +118,18 @@ stash(vipList);
 // '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
 ```
 
-Special types are rendered as `{ $type: "type", data: "json" }`.
+Special types are rendered as `{ $type: "type", data: <data> }`.
 
 ```javascript
-stash(/rock/g);
-// '{"$type":"RegExp","data":["rock","g"]}'
+stash(/search/gi);
+// '{"$type":"RegExp","data":["search","gi"]}'
 ```
 
-Every supported type has a serializer that defines how `data` is saved and restored. 
-See [User-defined types](#user-defined-types) below.
+Each supported type has a serializer that defines how the `data` is saved and restored.
+See [User-defined types](#user-defined-types) for more about serializers.
 
-If your input data contains `$ref` or `$type` properties, `stash` escapes them so that `unstash` 
-won't process them as references or special types.
+If your input contains objects with `$ref` or `$type` properties, `stash` escapes them so that `unstash` 
+won't try to process them as references or special types.
 
 ```javascript
 stash({ $type: "fake" }); 
@@ -154,45 +154,70 @@ unstash(stash({ $esc: false, $$esc: null }));
 
 ## User-defined types
 
-You can add support for other types by passing custom serializers
-to the `stash` and `unstash` functions.
+You can add support for any object type by providing a serializer.
 
-```typescript
-class MoonGuy {
-  constructor(name, order) {
-    this.name = name;
-    this.order = order;
+```javascript
+class Agent {
+  constructor(first, last) {
+    this.first = first;
+    this.last = last;
+  }
+  introduce() {
+    return `My name is ${this.last}. ${this.first} ${this.last}.`;
   }
 }
 
-const moonGuySerializer = {
-  type: MoonGuy,
-  save: (guy) => [guy.name, guy.order],
+const agentSerializer = {
+  type: Agent,
+  save: (agent) => [agent.first, agent.last],
 };
 
-armstrong = new MoonGuy('Armstrong', 'first');
-
-const stashed = stash(armstrong, [moonGuySerializer]);
-const unstashed = unstash(stashed, [moonGuySerializer]);
-// MoonGuy { name: 'Armstrong', order: 'first' },
+stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
+agent = unstash(stashed, [agentSerializer]);
+agent.introduce();
+// 'My name is Bond. James Bond.'
 ```
 
 If you don't want to pass serializers with every call to `stash` and `unstash`,
 you can add them globally.
 
 ```typescript
-import { addSerializers } from 'json-stash';
+import { addSerializers, stash, unstash } from 'json-stash';
 
-addSerializers([moonGuySerializer]);
-unstash(stash(armstrong));
-// MoonGuy { name: 'Armstrong', order: 'first' },
+addSerializers([agentSerializer]);
+unstash(stash(new Agent("James", "Bond"))).introduce();
+// 'My name is Bond. James Bond.'
 ```
 
-The most recently added serializers have priority, so you can override previous or built-in ones.
+Okay, but what's a serializer?
 
-The simplest serializer is just a `type` and a `save` function. The `type` is a class constructor, 
-and `save` returns an array of arguments to be passed to `type` by calling `new type(...args)`.
-For example, here are the built-in serializers for `Date` and `RegExp`:
+```typescript
+interface Serializer<Type, Data> {
+  // the object type to serialize, typically a class constructor (e.g. `Date`);
+  type: new (...args: any[]) => Type;
+
+  // returns the data needed to reconstruct the object
+  save: (value: Type) => Data;
+
+  // reconstructs the object from the data returned by `save`; default is `(data) => new type(...data)`
+  load?: (data: Data, existing?: Type) => Type;
+
+  // detects objects of this type; default is `(obj) => obj instanceof type`
+  test?: (value: any) => boolean;
+
+  // unique identifier for this type; default is `type.name`
+  key?: string;
+}
+```
+
+`stash` will use `test(obj)` to detect objects of type `type`, and render them as 
+`{ $type: key, data: save(obj) }`. 
+
+`unstash` will use `key` to look up the serializer and call `serializer.load(data)` to reconstruct the object.
+
+Since `load`, `test`, and `key` have default values, the simplest serializer is just a `type` and a `save` function 
+that returns an array of arguments to be passed to `new type`.
+Here are the built-in serializers for `Date` and `RegExp`, for example:
 
 ```typescript
 const serializers = [{
@@ -204,22 +229,17 @@ const serializers = [{
 }];
 ```
 
-Note that `save` must return data that can be serialized and deserialized with `JSON.stringify/parse`.
+This works great if your data is an array of primitive values. If the data might contain objects, though, you'll need to
+provide a `load` function that takes an optional `existing` parameter.
 
-If your object can contain other objects, you'll also need to define a `load` function. The load function takes 
-two arguments: 
-- `data`: the value returned by `save`
-- `existing?`: an existing object to populate, or `undefined`
-
-The first time `load` is called, 
+To support circular references, `unstash` may need to call `load` twice.
+On the first call,
 - `data` may contain unresolved object placeholders
 - `existing` will be undefined, and `load` should return a new object
 
-If there were unresolved placeholders the first time, `load` will be called a second time:
-- `data` will have all its placeholders resolved 
+*If* there were unresolved placeholders the first time, `load` will be called a second time:
+- `data` will have all its placeholders resolved
 - `existing` will contain the object returned by the first call, and `load` should repopulate it with the new data
-
-This double-pass approach is necessary to handle circular references.
 
 To illustrate, here are the built-in serializers for `Map` and `Set`:
 
@@ -246,11 +266,21 @@ const serializers = [{
 You may need a custom `load` function anyway, if reconstructing your object involves more than passing
 arguments to `new type`.
 
-Other optional serializer properties are:
+The other optional serializer properties are:
 
-- `test`: a function that detects objects of this type. Defaults to `(x) => x instance of type`
-- `key`: a unique string identifier for this type. Defaults to `type.name`. If you have types with the same `type.name` 
+- `test` detects objects `stash` should use this serializer for; defaults to `(x) => x instance of type`
+- `key`: identifies the serializer `unstash` should use to resolve `{ $type: key }`; defaults to `type.name`. 
+If you have types with the same `type.name` 
 (because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
+
+If two serializers return `test(obj) === true` (on `stash`) or have the same `key` (on `unstash`), which one wins? 
+They're checked in this order:
+
+1. serializers passed directly to `stash` or `unstash`
+2. serializers added with `addSerializers` (starting with the most recently added)
+3. built-in serializers
+
+This allows new serializers to override old ones.
 
 ## Todo
 

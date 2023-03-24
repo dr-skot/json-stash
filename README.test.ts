@@ -1,26 +1,26 @@
-import { stash, unstash } from "./src";
+import { addSerializers, stash, unstash } from "./src";
 
 describe("the README examples", () => {
-  it("is like JSON.stringify", () => {
-    let armstrong;
+  it("compares with JSON.stringify", () => {
+    let dude;
 
     // README text
 
-    armstrong = { name: "Neil", apollo: 11, steps: ["small", "giant"] };
+    dude = { name: "Dude", heads: 1, legs: ["left", "right"] };
 
-    JSON.stringify(armstrong);
-    // '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+    JSON.stringify(dude);
+    // '{"name":"Dude","heads":1,"legs":["left","right"]}'
 
-    stash(armstrong);
-    // '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+    stash(dude);
+    // '{"name":"Dude","heads":1,"legs":["left","right"]}'
 
     // end README text
 
-    expect(JSON.stringify(armstrong)).toBe(
-      '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+    expect(JSON.stringify(dude)).toBe(
+      '{"name":"Dude","heads":1,"legs":["left","right"]}'
     );
-    expect(stash(armstrong)).toBe(
-      '{"name":"Neil","apollo":11,"steps":["small","giant"]}'
+    expect(stash(dude)).toBe(
+      '{"name":"Dude","heads":1,"legs":["left","right"]}'
     );
   });
 
@@ -180,5 +180,39 @@ describe("the README examples", () => {
     );
     const unstashed = unstash(stash({ $esc: false, $$esc: null }));
     expect(unstashed).toEqual({ $esc: false, $$esc: null });
+  });
+
+  it("demonstrates a custom serializer", () => {
+    let agent, stashed;
+    // README text
+    class Agent {
+      // @ts-ignore
+      constructor(first, last) {
+        // @ts-ignore
+        this.first = first;
+        // @ts-ignore
+        this.last = last;
+      }
+      introduce() {
+        // @ts-ignore
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+
+    const agentSerializer = {
+      type: Agent,
+      // @ts-ignore
+      save: (agent) => [agent.first, agent.last],
+    };
+
+    stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
+    agent = unstash(stashed, [agentSerializer]);
+    agent.introduce();
+    // 'My name is Bond. James Bond.'
+    // end README text
+
+    stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
+    agent = unstash(stashed, [agentSerializer]);
+    expect(agent.introduce()).toBe("My name is Bond. James Bond.");
   });
 });
