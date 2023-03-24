@@ -1,54 +1,52 @@
-export type Serializer = {
+export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
-  // determines the default `load`, `test`, and `key` properties
-  type: any;
+  type: new (...args: any[]) => Type;
 
-  // returns data that will be passed to `load` to reconstruct the object
-  save: (value: any) => any;
+  // returns the data needed to reconstruct the object
+  save: (value: Type) => Data;
 
-  // reconstructs object using data returned by save; default is (data: any) => new type(...data)
-  // But types that can contain other objects must implement their own `load` function
-  // that populates `existing` with the `data` if it's defined.
-  // (This is necessary for handling circular references.)
-  load?: (data: any, existing?: any) => any;
+  // reconstructs the object from the data returned by `save`; default is `(data) => new type(...data)`
+  // if `existing` is defined, repopulate it with `data`; otherwise return a new object
+  // you only need to support the `existing` parameter if `Data` (return value of `save`) can contain objects
+  load?: (data: Data, existing?: Type) => Type;
 
-  // function to detect this type; default is (value: any) => value instanceof type
+  // detects objects of this type; default is `(obj) => obj instanceof type`
   test?: (value: any) => boolean;
 
-  // unique identifier for this type; default is type.name
+  // unique identifier for this type; default is `type.name`
   key?: string;
-};
+}
 
 export const DEFAULT_SERIALIZERS = [
   {
     type: Date,
     save: (value: Date) => [value.toISOString()],
-  },
+  } as Serializer<Date, [string]>,
   {
     type: RegExp,
     save: (value: RegExp) => [value.source, value.flags],
-  },
+  } as Serializer<RegExp, [string, string]>,
   {
     type: Map,
-    save: (map: Map<unknown, unknown>) => [...map],
-    load: (data: [unknown, unknown][], map = new Map()) => {
+    save: (map) => [...map],
+    load: (data, map = new Map()) => {
       map.clear();
       for (const [k, v] of data) map.set(k, v);
       return map;
     },
-  },
+  } as Serializer<Map<unknown, unknown>, [unknown, unknown][]>,
   {
     type: Set,
-    save: (set: Set<unknown>) => [...set],
-    load: (data: unknown[], set = new Set()) => {
+    save: (set) => [...set],
+    load: (data, set = new Set()) => {
       set.clear();
       for (const item of data) set.add(item);
       return set;
     },
-  },
-] as Serializer[];
+  } as Serializer<Set<unknown>, unknown[]>,
+] as Serializer<any, any>[];
 
 // support adding custom serializers to the default list
-export function addSerializers(serializers: Serializer[]) {
+export function addSerializers(serializers: Serializer<any, any>[]) {
   DEFAULT_SERIALIZERS.splice(0, 0, ...serializers);
 }

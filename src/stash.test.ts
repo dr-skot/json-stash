@@ -1,5 +1,5 @@
 import { unstash, stash } from "./stash";
-import { addSerializers } from "./serializers";
+import { addSerializers, Serializer } from "./serializers";
 
 function expectStringifyToFail(input: unknown) {
   const output = JSON.parse(JSON.stringify(input));
@@ -141,6 +141,12 @@ describe("stash", () => {
     expect(output.get("a")).toBe(output.get("b"));
   });
 
+  it("supports nested Sets", () => {
+    const input = new Set([new Set([1, 2, 3])]);
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+  });
+
   it("handles circular refs inside of Map", () => {
     const armstrong: any = { buddy: null };
     const aldrin = { buddy: armstrong };
@@ -167,7 +173,7 @@ describe("stash", () => {
       }
     }
 
-    const moonGuySerializer = {
+    const moonGuySerializer: Serializer<MoonGuy, [string, number]> = {
       type: MoonGuy,
       key: "MoonGuy",
       save: (guy: MoonGuy) => [guy.name, guy.order],
@@ -241,29 +247,25 @@ describe("stash", () => {
 
 describe("addSerializers", () => {
   it("adds a serializer to the default set", () => {
-    class MoonGuy {
-      name: string;
-      order: number;
-      constructor(name: string, order: number) {
-        this.name = name;
-        this.order = order;
+    class Agent {
+      first: string;
+      last: string;
+      constructor(first: string, last: string) {
+        this.first = first;
+        this.last = last;
+      }
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
       }
     }
 
-    const moonGuySerializer = {
-      type: MoonGuy,
-      key: "MoonGuy",
-      save: (guy: MoonGuy) => [guy.name, guy.order],
+    const agentSerializer: Serializer<Agent, [string, string]> = {
+      type: Agent,
+      save: (agent) => [agent.first, agent.last],
     };
 
-    const eagleCrew = [new MoonGuy("Armstrong", 1), new MoonGuy("Aldrin", 2)];
-
-    addSerializers([moonGuySerializer]);
-
-    const unstashed = unstash(stash(eagleCrew));
-
-    expect(unstashed[0]).toBeInstanceOf(MoonGuy);
-    expect(unstashed[1]).toBeInstanceOf(MoonGuy);
-    expect(unstashed).toEqual(eagleCrew);
+    const stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
+    const agent = unstash(stashed, [agentSerializer]);
+    expect(agent.introduce()).toBe("My name is Bond. James Bond.");
   });
 });

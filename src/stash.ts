@@ -1,19 +1,19 @@
 import { getRefResolver, getRefSaver, hasRefs, isRef } from "./ref";
 import { reload, deserialize, isDeserializable, serialize } from "./serialize";
 import { deepMap } from "./utils";
-import { Serializer } from "./serializers";
 import { getObjectEscaper } from "./escape";
+import { Serializer } from "./serializers";
 
 export type StashRoot = {
   $: any;
 };
 
-export function stash(data: unknown, serializers?: Serializer[]) {
+export function stash(data: unknown, serializers?: Serializer<any, any>[]) {
   const root = encode({ $: data }, serializers);
   return JSON.stringify(root.$);
 }
 
-export function unstash(json: string, serializers?: Serializer[]) {
+export function unstash(json: string, serializers?: Serializer<any, any>[]) {
   const root = { $: JSON.parse(json) };
   return decode(root, serializers).$;
 }
@@ -22,7 +22,10 @@ export function unstash(json: string, serializers?: Serializer[]) {
 // internals
 //
 
-function encode(root: StashRoot, serializers?: Serializer[]): StashRoot {
+function encode(
+  root: StashRoot,
+  serializers?: Serializer<any, any>[]
+): StashRoot {
   const saveRefs = getRefSaver();
   const { escape, unescapeAll } = getObjectEscaper();
   const encoded = deepMap(
@@ -33,7 +36,10 @@ function encode(root: StashRoot, serializers?: Serializer[]): StashRoot {
   return encoded;
 }
 
-function decode(root: StashRoot, serializers?: Serializer[]): StashRoot {
+function decode(
+  root: StashRoot,
+  serializers?: Serializer<any, any>[]
+): StashRoot {
   const refs = getRefResolver(root);
   const { findEscapes, unescapeAll } = getObjectEscaper();
 
