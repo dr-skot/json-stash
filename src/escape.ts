@@ -1,18 +1,17 @@
 import { deepMap, hasOwnProperty, isPlainObject } from "./utils";
 
-// a data object that happens to have keys _stashRef, _stashType, or _stashEscape
+// a data object that happens to have keys $ref, $type, or $esc
 // needs to be escaped so stash doesn't mistakenly try to dereference or deserialize or unescape it
-const keyIsUnsafe = (key: string) => key.match(/^_stash(Ref|Type|Escape)$/);
+const keyIsUnsafe = (key: string) => key.match(/^\$(ref|type|esc)$/);
 
-// any object with a _stashEscape property will return false when passed to isRef() or isDeserializable()
-export const isEscaped = (value: object) =>
-  hasOwnProperty(value, "_stashEscape");
+// any object with an $esc property will return false when passed to isRef() or isDeserializable()
+export const isEscaped = (value: object) => hasOwnProperty(value, "$esc");
 
 function escapeObject(value: object) {
-  // if the object already has a _stashEscape property, don't overwrite it!
-  // prefix _ until we have an unused key we can use as a marker
-  let escapeKey = "_stashEscape";
-  while (hasOwnProperty(value, escapeKey)) escapeKey = "_" + escapeKey;
+  // if the object already has an $esc property, don't overwrite it!
+  // prefix $ until we have an unused key we can use as a marker
+  let escapeKey = "$esc";
+  while (hasOwnProperty(value, escapeKey)) escapeKey = "$" + escapeKey;
 
   // we'll delete this marker later
   (value as any)[escapeKey] = true;
@@ -22,11 +21,11 @@ function escapeObject(value: object) {
 
 function unescapeObject(value: unknown) {
   if (!isPlainObject(value)) return value;
-  if (!hasOwnProperty(value, "_stashEscape")) return value;
+  if (!hasOwnProperty(value, "$esc")) return value;
 
-  // delete the ignore marker (it's the /^_+stashEscape$/ key with the most leading underscores)
-  let escapeKey = "_stashEscape";
-  while (hasOwnProperty(value, escapeKey)) escapeKey = "_" + escapeKey;
+  // delete the esc marker (it's the /^\$+esc$/ key with the most $s)
+  let escapeKey = "$esc";
+  while (hasOwnProperty(value, escapeKey)) escapeKey = "$" + escapeKey;
   delete (value as any)[escapeKey.slice(1)];
 
   return value;

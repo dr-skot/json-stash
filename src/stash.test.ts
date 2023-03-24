@@ -210,15 +210,15 @@ describe("stash", () => {
     expect(unstashed).toEqual(eagleCrew);
   });
 
-  it("handles objects with _stashRef, _stashType and _stashEscape keys", () => {
+  it("handles objects with $ref, $type and $esc keys", () => {
     const fakeRef = {
-      _stashRef: 1,
+      $ref: 1,
     };
     const fakeType = {
-      _stashType: 2,
+      $type: 2,
     };
     const fakeEscape = {
-      _stashEscape: 3,
+      $esc: 3,
     };
     // make one of them circular
     (fakeRef as any).self = fakeRef;

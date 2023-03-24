@@ -5,14 +5,12 @@ import { isEscaped } from "./escape";
 // a ref is a placeholder for an object that occurs elsewhere in the stash
 export type Ref = {
   // path to the object from the stash root
-  _stashRef: string;
+  $ref: string;
 };
 
 export function isRef(value: unknown): value is Ref {
   return (
-    isPlainObject(value) &&
-    hasOwnProperty(value, "_stashRef") &&
-    !isEscaped(value)
+    isPlainObject(value) && hasOwnProperty(value, "$ref") && !isEscaped(value)
   );
 }
 
@@ -34,7 +32,7 @@ export function getRefSaver(): RefSaver {
   function refSaver(path: string, value: unknown) {
     if (value === null || typeof value !== "object") return value;
     const refPath = cache.get(value);
-    if (refPath) return { _stashRef: refPath };
+    if (refPath) return { $ref: refPath };
     cache.set(value, path);
     return value;
   }
@@ -49,8 +47,8 @@ export function getRefResolver(root: StashRoot) {
   // find all the ref paths in the object
   // root is just-parsed JSON, so no need to worry about circular refs
   deepForEach((node) => {
-    if (isRef(node) && !refs.has(node._stashRef)) {
-      refs.set(node._stashRef, node);
+    if (isRef(node) && !refs.has(node.$ref)) {
+      refs.set(node.$ref, node);
     }
   })(root);
 
@@ -61,7 +59,7 @@ export function getRefResolver(root: StashRoot) {
   }
 
   const resolve = deepMap(
-    (node) => (isRef(node) ? refs.get(node._stashRef) : node),
+    (node) => (isRef(node) ? refs.get(node.$ref) : node),
     { depthFirst: true, inPlace: true, avoidCircular: false }
   );
 

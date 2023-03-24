@@ -3,15 +3,13 @@ import { DEFAULT_SERIALIZERS, Serializer } from "./serializers";
 import { isEscaped } from "./escape";
 
 export type Deserializable = {
-  _stashType: string;
+  $type: string;
   data: unknown;
 };
 
 export function isDeserializable(value: unknown): value is Deserializable {
   return (
-    isPlainObject(value) &&
-    hasOwnProperty(value, "_stashType") &&
-    !isEscaped(value)
+    isPlainObject(value) && hasOwnProperty(value, "$type") && !isEscaped(value)
   );
 }
 
@@ -22,7 +20,7 @@ export function serialize(value: unknown, serializers: Serializer[] = []) {
   );
   if (!serializer) return value;
   return {
-    _stashType: getKey(serializer),
+    $type: getKey(serializer),
     data: serializer.save(value),
   };
 }
@@ -32,9 +30,9 @@ export function deserialize(
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => getKey(s) === spec._stashType);
+  const serializer = serializers.find((s) => getKey(s) === spec.$type);
   if (!serializer) {
-    console.warn(`No serializer found for ${spec._stashType}`);
+    console.warn(`No serializer found for ${spec.$type}`);
     return spec;
   }
   const load = serializer.load || defaultLoader(serializer);
@@ -47,7 +45,7 @@ export function reload(
   serializers: Serializer[] = []
 ) {
   serializers = [...serializers, ...DEFAULT_SERIALIZERS];
-  const serializer = serializers.find((s) => getKey(s) === spec._stashType);
+  const serializer = serializers.find((s) => getKey(s) === spec.$type);
   const data = spec.data;
   serializer?.load?.(data, value);
   return value;
