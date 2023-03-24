@@ -50,64 +50,108 @@ egoist.preoccupation = egoist;
 JSON.stringify(egoist);
 // TypeError: Converting circular structure to JSON
 
-stash(egoist);
-// '{"preoccupation":{"_stashRef":"$"}}'
-
 unstash(stash(egoist));
 // <ref *1> { preoccupation: [Circular *1] }
 ```
-
-### In other words, identical objects
 
 Circular references are a special case of identical objects. 
 When the input contains multiple references to the same object, `stash`
 maintains those identities. `JSON.stringify` doesn't.
 
 ```javascript
-steph = { name: 'Curry' };
-steve = { name: 'Kerr' };
+grover = { name: "Cleveland" };
+ben = { name: "Harrison" };
+presidents = { 22: grover, 23: ben, 24: grover };
 
-// per-game stat leaders
-threes = { shot: steph, made: steph, pct: steve }
+unstringified = JSON.parse(JSON.stringify(presidents));
+// 22 and 24 are copies of each other
+expect(unstringified[22]).not.toBe(unstringified[24]);
 
-unstringified = JSON.parse(JSON.stringify(threes));
-// `shot` and `made` are different objects
-expect(unstringified.shot).not.toBe(unstringified.made);
-
-unstashed = unstash(stash(threes));
-// `shot` and `made` are the same object
-expect(unstashed.shot).toBe(unstashed.made);
+unstashed = unstash(stash(presidents));
+// 22 and 24 are the same object
+expect(unstashed[22]).toBe(unstashed[24]);
 ```
 
 ### Non-vanilla types
 
-`JSON.stringify` doesn't support non-vanilla data. `Date`s get converted to strings, and most other objects become `{}`.
+`stash` supports `Date`, `Map`, `Set` and `RegExp` out of the box. `JSON.stringify` doesn't.
 
 ```javascript
-JSON.parse(JSON.stringify(new Date("1969-07-21T02:56Z")))
+landing = new Date("1969-07-21T02:56Z");
+order = new Map([[1, "Armstrong"], [2, "Aldrin"]]);
+steps = new Set(["small", "giant"]);
+collect = /rock/g;
+
+JSON.parse(JSON.stringify(landing));
 // '1969-07-21T02:56:00.000Z'
-
-JSON.parse(JSON.stringify(new Map([["driver", "Armstrong"], ["shotgun", "Aldrin"]])))
-// {}
-
-JSON.parse(JSON.stringify({ collect: /rock/g }));
-// { collect: {} }
-```
-
-`stash` supports `Date`, `RegExp`, `Map`, and `Set` out of the box.
-
-```javascript
-unstash(stash(new Date("1969-07-21T02:56Z")))
+unstash(stash(landing));
 // 1969-07-21T02:56:00.000Z // Date object
 
-unstash(stash(new Map([["driver", "Armstrong"], ["shotgun", "Aldrin"]])))
-// Map(2) { 'driver' => 'Armstrong', 'shotgun' => 'Aldrin' }
+JSON.parse(JSON.stringify(order));
+// {}
+unstash(stash(order));
+// Map(2) { 1 => 'Armstrong', 2 => 'Aldrin' }
 
-unstash(stash({ collect: /rock/g }));
-// { collect: /rock/g }
+JSON.parse(JSON.stringify(steps));
+// {}
+unstash(stash(steps));
+// Set(2) { 'small', 'giant' }
+
+JSON.parse(JSON.stringify(collect));
+// {}
+unstash(stash(collect));
+// /rock/g
 ```
 
-### User-defined types
+You can support other types by adding your own serializers. See [User-defined types](#user-defined-types) below.
+
+## How it works
+
+Rereferenced objects are rendered as `{ $ref: "$.path.to.object" }`.
+
+```javascript
+egoist = {};
+egoist.preoccupation = egoist;
+vipList = [egoist, egoist];
+
+stash(vipList);
+// '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
+```
+
+Special types are rendered as `{ $type: "type", data: "json" }`.
+
+```javascript
+stash(/rock/g);
+// '{"$type":"RegExp","data":["rock","g"]}'
+```
+
+Serializers define how `data` is saved and restored. See [User-defined types](#user-defined-types) below.
+
+If your input data contains `$ref` or `$type` properties, `stash` escapes them so that `unstash` 
+won't process them as references or special types.
+
+```javascript
+stash({ $type: "fake" }); 
+// '{"$type":"fake","$esc":true}'
+
+unstash(stash({ $type: "fake" }));
+// { $type: "fake" }
+```
+
+If your input contains `$esc` properties, `stash` can deal with that too.
+
+```javascript
+stash({ $esc: false });
+// '{"$esc":false,"$$esc":true}'
+
+stash({ $esc: false, $$esc: null});
+// '{"$esc":false,"$$esc":null,"$$$esc":true}'
+
+unstash(stash({ $esc: false, $$esc: null }));
+// { $esc: false, $$esc: null }
+```
+
+## User-defined types
 
 You can add support for other types by passing custom serializers
 to the `stash` and `unstash` functions.
@@ -206,60 +250,6 @@ Other optional serializer properties are:
 - `test`: a function that detects objects of this type. Defaults to `(x) => x instance of type`
 - `key`: a unique string identifier for this type. Defaults to `type.name`. If you have types with the same `type.name` 
 (because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
-
-
-## How it works
-
-Rereferenced objects are rendered as `{ _stashRef: "$.path.to.object" }`.
-
-```javascript
-egoist = {};
-egoist.preoccupation = egoist;
-vipList = [egoist, egoist];
-
-stash(vipList);
-// '[{"preoccupation":{"_stashRef":"$.0"}},{"_stashRef":"$.0"}]'
-```
-
-Special types are rendered as `{ _stashType: "type", data: "json" }`.
-
-```javascript
-stash(/rock/g);
-// '{"_stashType":"RegExp","data":["rock","g"]}'
-```
-
-`stash` detects a special type when an object passes some serializer's `test` function, 
-and passes the object to `serializer.save` to get the `data`.
-
-`unstash` finds the serializer with a `key` of `_stashType` and passes the `data` to `serializer.load` 
-to reconstruct the object.
-
-In the unlikely event that your input contains `_stashRef` or `_stashType` properties,
-`stash` will escape them.
-
-```javascript
-stash({ _stashRef: "fake" }); 
-// '{"_stashRef":"fake","_stashEscape":true}'
-
-stash({ _stashType: "bogus" });
-// '"{\"_stashType\":\"bogus\",\"_stashEscape\":true}"
-
-unstash(stash({ _stashRef: "fake" }));
-// { _stashRef: "fake" }
-```
-
-If your input contains `_stashEscape` properties, `stash` can deal with that too.
-
-```javascript
-stash({ _stashEscape: false });
-// '{"_stashEscape":false,"__stashEscape":true}'
-
-stash({ _stashEscape: false, __stashEscape: null});
-// '{"_stashEscape":false,"__stashEscape":null,"___stashEscape":true}'
-
-unstash(stash({ _stashEscape: false }));
-// { _stashEscape: false }
-```
 
 ## Todo
 

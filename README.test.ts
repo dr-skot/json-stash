@@ -37,7 +37,7 @@ describe("the README examples", () => {
       // TypeError: Converting circular structure to JSON
 
       stash(egoist);
-      // '{"preoccupation":{"_stashRef":"$"}}'
+      // '{"preoccupation":{"$ref":"$"}}'
 
       unstash(stash(egoist));
       // <ref *1> { preoccupation: [Circular *1]
@@ -49,29 +49,72 @@ describe("the README examples", () => {
       "Converting circular structure to JSON"
     );
 
-    expect(stash(egoist)).toBe('{"preoccupation":{"_stashRef":"$"}}');
+    expect(stash(egoist)).toBe('{"preoccupation":{"$ref":"$"}}');
   });
 
   it("handles identical objects", () => {
-    let steph, steve, threes, unstringified, unstashed;
+    let grover, ben, presidents, unstringified, unstashed;
 
     // README text
 
-    steph = { name: "Curry" };
-    steve = { name: "Kerr" };
+    grover = { name: "Cleveland" };
+    ben = { name: "Harrison" };
+    presidents = { 22: grover, 23: ben, 24: grover };
 
-    // per-game stat leaders
-    threes = { shot: steph, made: steph, pct: steve };
+    unstringified = JSON.parse(JSON.stringify(presidents));
+    // 22 and 24 are copies of each other
+    expect(unstringified[22]).not.toBe(unstringified[24]);
 
-    unstringified = JSON.parse(JSON.stringify(threes));
-    // `shot` and `made` are duplicates
-    expect(unstringified.shot).not.toBe(unstringified.made);
-
-    unstashed = unstash(stash(threes));
-    // `shot` and `made` are the same object
-    expect(unstashed.shot).toBe(unstashed.made);
+    unstashed = unstash(stash(presidents));
+    // 22 and 24 are the same object
+    expect(unstashed[22]).toBe(unstashed[24]);
 
     // end README text
+  });
+
+  it("handles non-vanilla objects", () => {
+    let landing, order, steps, collect;
+
+    // README text
+    landing = new Date("1969-07-21T02:56Z");
+    JSON.parse(JSON.stringify(landing));
+    // '1969-07-21T02:56:00.000Z'
+    unstash(stash(landing));
+    // 1969-07-21T02:56:00.000Z // Date object
+
+    order = new Map([
+      [1, "Armstrong"],
+      [2, "Aldrin"],
+    ]);
+    JSON.parse(JSON.stringify(order));
+    // {}
+    unstash(stash(order));
+    // Map(2) { 1 => 'Armstrong', 2 => 'Aldrin' }
+
+    steps = new Set(["small", "giant"]);
+    JSON.parse(JSON.stringify(steps));
+    // {}
+    unstash(stash(steps));
+    // Set(2) { 'small', 'giant' }
+
+    collect = /rock/g;
+    JSON.parse(JSON.stringify(collect));
+    // {}
+    unstash(stash(collect));
+    // /rock/g
+
+    // end README text
+
+    expect(JSON.parse(JSON.stringify(landing))).toBe(
+      "1969-07-21T02:56:00.000Z"
+    );
+    expect(unstash(stash(landing))).toEqual(landing);
+    expect(JSON.parse(JSON.stringify(order))).toEqual({});
+    expect(unstash(stash(order))).toEqual(order);
+    expect(JSON.parse(JSON.stringify(steps))).toEqual({});
+    expect(unstash(stash(steps))).toEqual(steps);
+    expect(JSON.parse(JSON.stringify(collect))).toEqual({});
+    expect(unstash(stash(collect))).toEqual(collect);
   });
 
   it("explains how duplicate references are rendered", () => {
@@ -84,12 +127,12 @@ describe("the README examples", () => {
     vipList = [egoist, egoist];
 
     stash(vipList);
-    // '[{"preoccupation":{"_stashRef":"$.0"}},{"_stashRef":"$.0"}]'
+    // '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
 
     // end README text
 
     expect(stash(vipList)).toEqual(
-      '[{"preoccupation":{"_stashRef":"$.0"}},{"_stashRef":"$.0"}]'
+      '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
     );
   });
 
@@ -97,51 +140,45 @@ describe("the README examples", () => {
     // README text
 
     stash(/rock/g);
-    // '{"_stashType":"RegExp","data":["rock","g"]}'
+    // '{"$type":"RegExp","data":["rock","g"]}'
 
     // end README text
-    expect(stash(/rock/g)).toEqual(
-      '{"_stashType":"RegExp","data":["rock","g"]}'
-    );
+    expect(stash(/rock/g)).toEqual('{"$type":"RegExp","data":["rock","g"]}');
   });
 
   it("explains escaping", () => {
     // README text
-    stash({ _stashRef: "fake" });
-    // '{"_stashRef":"fake","_stashEscape":true}'
-    stash({ _stashType: "bogus" });
-    // '"{\"_stashType\":\"bogus\",\"_stashEscape\":true}"
+
+    stash({ $type: "fake" });
+    // '{"$type":"fake","$esc":true}'
+
+    unstash(stash({ $type: "fake" }));
+    // { $type: "fake" }
+
     // end README text
-    expect(stash({ _stashRef: "fake" })).toBe(
-      '{"_stashRef":"fake","_stashEscape":true}'
-    );
-    expect(stash({ _stashType: "bogus" })).toBe(
-      '{"_stashType":"bogus","_stashEscape":true}'
-    );
+    expect(stash({ $type: "fake" })).toBe('{"$type":"fake","$esc":true}');
+    expect(unstash(stash({ $type: "fake" }))).toEqual({ $type: "fake" });
   });
 
-  it("explains escaping _stashEscape", () => {
+  it("explains escaping $esc", () => {
     // README text
 
-    stash({ _stashEscape: false });
-    // '{"_stashEscape":false,"__stashEscape":true}'
+    stash({ $esc: false });
+    // '{"$esc":false,"$$esc":true}'
 
-    stash({ _stashEscape: false, __stashEscape: null });
-    // '{"_stashEscape":false,"__stashEscape":null,"___stashEscape":true}'
+    stash({ $esc: false, $$esc: null });
+    // '{"$esc":false,"$$esc":null,"$$$esc":true}'
 
-    unstash(stash({ _stashEscape: false }));
-    // { _stashEscape: false }
+    unstash(stash({ $esc: false, $$esc: null }));
+    // { $esc: false, $$esc: null }
 
     // end README text
 
-    expect(stash({ _stashEscape: false })).toBe(
-      '{"_stashEscape":false,"__stashEscape":true}'
+    expect(stash({ $esc: false })).toBe('{"$esc":false,"$$esc":true}');
+    expect(stash({ $esc: false, $$esc: null })).toBe(
+      '{"$esc":false,"$$esc":null,"$$$esc":true}'
     );
-    expect(stash({ _stashEscape: false, __stashEscape: null })).toBe(
-      '{"_stashEscape":false,"__stashEscape":null,"___stashEscape":true}'
-    );
-    expect(unstash(stash({ _stashEscape: false }))).toEqual({
-      _stashEscape: false,
-    });
+    const unstashed = unstash(stash({ $esc: false, $$esc: null }));
+    expect(unstashed).toEqual({ $esc: false, $$esc: null });
   });
 });
