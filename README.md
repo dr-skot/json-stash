@@ -125,7 +125,8 @@ stash(/rock/g);
 // '{"$type":"RegExp","data":["rock","g"]}'
 ```
 
-Serializers define how `data` is saved and restored. See [User-defined types](#user-defined-types) below.
+Every supported type has a serializer that defines how `data` is saved and restored. 
+See [User-defined types](#user-defined-types) below.
 
 If your input data contains `$ref` or `$type` properties, `stash` escapes them so that `unstash` 
 won't process them as references or special types.
