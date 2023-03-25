@@ -74,7 +74,7 @@ expect(unstashed[22]).toBe(unstashed[24]);
 
 ### Non-vanilla types
 
-`stash` supports `Date`, `Map`, `Set` and `RegExp` out of the box. `JSON.stringify` doesn't.
+`stash` handles many common types that `JSON.stringify` punts on.
 
 ```javascript
 landing = new Date("1969-07-21T02:56Z");
@@ -102,6 +102,8 @@ JSON.parse(JSON.stringify(collect));
 unstash(stash(collect));
 // /rock/g
 ```
+
+Supported out of the box are `Date`, `RegExp`, `Map`, `Set`, `Symbol`, `Error`, `BigInt`.
 
 You can support other types by adding your own serializers. See [User-defined types](#user-defined-types) below.
 

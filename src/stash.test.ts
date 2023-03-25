@@ -116,6 +116,13 @@ describe("stash", () => {
     expect(output).toBe(input);
   });
 
+  it("serializes BigInts", () => {
+    const input = BigInt("1234567890123456789012345678901234567890");
+    const output = unstash(stash(input));
+    expect(typeof output).toBe("bigint");
+    expect(output).toEqual(input);
+  });
+
   it("serializes Map objects", () => {
     const input = new Map([
       ["a", 1],
@@ -131,6 +138,18 @@ describe("stash", () => {
     const output = unstash(stash(input));
     expect(output).toBeInstanceOf(Set);
     expect(output).toEqual(input);
+  });
+
+  it("serializes Error objects", () => {
+    let input, output;
+    try {
+      JSON.parse("not json");
+    } catch (e) {
+      input = e as Error;
+      output = unstash(stash(input));
+      expect(output).toBeInstanceOf(Error);
+      expect(output).toEqual(input);
+    }
   });
 
   it("handles object identity inside of Map", () => {

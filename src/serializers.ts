@@ -39,6 +39,25 @@ export const DEFAULT_SERIALIZERS = [
   } as Serializer<symbol, [string | undefined, string | undefined]>,
 
   {
+    type: typeof BigInt(0),
+    key: "bigint",
+    test: (x: any) => typeof x === "bigint",
+    save: (x: bigint) => x.toString(),
+    load: (str) => BigInt(str),
+  } as Serializer<bigint, string>,
+
+  {
+    type: Error,
+    save: (error) => [error.name, error.message, error.stack],
+    load: ([name, message, stack]) => {
+      const error = new Error(message);
+      error.name = name;
+      error.stack = stack;
+      return error;
+    },
+  } as Serializer<Error, [string, string, string]>,
+
+  {
     type: Map,
     save: (map) => [...map],
     load: (data, map = new Map()) => {

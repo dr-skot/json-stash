@@ -22,3 +22,5 @@ describe("the built-in symbol serializer", () => {
     expect(loaded.description).toBe("foo");
   });
 });
+
+describe("the built-in BigInt serializer", () => {});
