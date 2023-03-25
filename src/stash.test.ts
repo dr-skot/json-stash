@@ -100,6 +100,23 @@ describe("stash", () => {
     expect(output).toEqual(input);
   });
 
+  it("serializes symbols", () => {
+    let input, output;
+
+    // no key — input and output will not be equal but descriptions will match
+    input = Symbol("foo");
+    output = unstash(stash(input));
+    expect(typeof output).toBe("symbol");
+    expect(output).not.toEqual(input);
+    expect(output.description).toEqual(input.description);
+
+    // no key — input and output will be the same object
+    input = Symbol.for("foo");
+    output = unstash(stash(input));
+    expect(typeof output).toBe("symbol");
+    expect(output).toBe(input);
+  });
+
   it("serializes Map objects", () => {
     const input = new Map([
       ["a", 1],

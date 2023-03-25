@@ -1,6 +1,6 @@
 export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
-  type: new (...args: any[]) => Type;
+  type: any; // new (...args: any[]) => Type;
 
   // returns the data needed to reconstruct the object
   save: (value: Type) => Data;
@@ -26,6 +26,15 @@ export const DEFAULT_SERIALIZERS = [
     type: RegExp,
     save: (value: RegExp) => [value.source, value.flags],
   } as Serializer<RegExp, [string, string]>,
+  {
+    type: typeof Symbol(),
+    key: "symbol",
+    test: (x: any) => typeof x === "symbol",
+    save: (x: symbol) => [x.description, Symbol.keyFor(x)],
+    load: ([description, key]) => {
+      return key ? Symbol.for(key) : Symbol(description);
+    },
+  } as Serializer<symbol, [string | undefined, string | undefined]>,
   {
     type: Map,
     save: (map) => [...map],
