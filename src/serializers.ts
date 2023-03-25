@@ -22,10 +22,12 @@ export const DEFAULT_SERIALIZERS = [
     type: Date,
     save: (value: Date) => [value.toISOString()],
   } as Serializer<Date, [string]>,
+
   {
     type: RegExp,
     save: (value: RegExp) => [value.source, value.flags],
   } as Serializer<RegExp, [string, string]>,
+
   {
     type: typeof Symbol(),
     key: "symbol",
@@ -35,6 +37,7 @@ export const DEFAULT_SERIALIZERS = [
       return key ? Symbol.for(key) : Symbol(description);
     },
   } as Serializer<symbol, [string | undefined, string | undefined]>,
+
   {
     type: Map,
     save: (map) => [...map],
@@ -44,6 +47,7 @@ export const DEFAULT_SERIALIZERS = [
       return map;
     },
   } as Serializer<Map<unknown, unknown>, [unknown, unknown][]>,
+
   {
     type: Set,
     save: (set) => [...set],
@@ -55,24 +59,11 @@ export const DEFAULT_SERIALIZERS = [
   } as Serializer<Set<unknown>, unknown[]>,
 ] as Serializer<any, any>[];
 
-export const addedSerializers: Serializer<any, any>[] = [];
-
-// support adding custom serializers to the default list
-export function addSerializers(serializers: Serializer<any, any>[]) {
-  addedSerializers.splice(0, 0, ...serializers);
-}
-
-export function removeSerializer(key: string) {
-  const index = addedSerializers.findIndex((s) => getKey(s) === key);
-  if (index !== -1) addedSerializers.splice(index, 1);
-}
-
 export function findSerializer(
   test: (s: Serializer<any, any>) => boolean,
   serializers: Serializer<any, any>[] = []
 ): Serializer<any, any> | undefined {
-  serializers = [...serializers, ...addedSerializers, ...DEFAULT_SERIALIZERS];
-  return serializers.find((s) => test(s));
+  return serializers.find(test) || DEFAULT_SERIALIZERS.find(test);
 }
 
 export function getKey(serializer: Serializer<any, any>) {

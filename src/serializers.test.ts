@@ -1,7 +1,7 @@
 import { findSerializer } from "./serializers";
 
 describe("the built-in symbol serializer", () => {
-  const serializer = findSerializer(({ type }) => type === Symbol);
+  const serializer = findSerializer(({ key }) => key === "symbol");
   it("tests for symbol", () => {
     expect(serializer?.test?.(Symbol())).toBe(true);
     expect(serializer?.test?.(Symbol("foo"))).toBe(true);

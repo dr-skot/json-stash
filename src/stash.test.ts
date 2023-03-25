@@ -1,5 +1,4 @@
-import { unstash, stash } from "./stash";
-import { addSerializers, Serializer } from "./serializers";
+import { unstash, stash, addSerializers, type Serializer } from "./index";
 
 function expectStringifyToFail(input: unknown) {
   const output = JSON.parse(JSON.stringify(input));
