@@ -83,7 +83,7 @@ steps = new Set(["small", "giant"]);
 collect = /rock/g;
 
 JSON.parse(JSON.stringify(landing));
-// '1969-07-21T02:56:00.000Z'
+// '1969-07-21T02:56:00.000Z' // string
 unstash(stash(landing));
 // 1969-07-21T02:56:00.000Z // Date object
 
