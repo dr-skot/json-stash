@@ -46,7 +46,26 @@ export const DEFAULT_SERIALIZERS = [
   } as Serializer<Set<unknown>, unknown[]>,
 ] as Serializer<any, any>[];
 
+export const addedSerializers: Serializer<any, any>[] = [];
+
 // support adding custom serializers to the default list
 export function addSerializers(serializers: Serializer<any, any>[]) {
-  DEFAULT_SERIALIZERS.splice(0, 0, ...serializers);
+  addedSerializers.splice(0, 0, ...serializers);
+}
+
+export function removeSerializer(key: string) {
+  const index = addedSerializers.findIndex((s) => getKey(s) === key);
+  if (index !== -1) addedSerializers.splice(index, 1);
+}
+
+export function findSerializer(
+  test: (s: Serializer<any, any>) => boolean,
+  serializers: Serializer<any, any>[] = []
+): Serializer<any, any> | undefined {
+  serializers = [...serializers, ...addedSerializers, ...DEFAULT_SERIALIZERS];
+  return serializers.find((s) => test(s));
+}
+
+export function getKey(serializer: Serializer<any, any>) {
+  return serializer.key || serializer.type.name;
 }

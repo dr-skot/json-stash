@@ -1,5 +1,8 @@
-const { stash, unstash } = require("./stash");
-const { addSerializers } = require("./serializers");
+const { stash, unstash, addSerializers, clearSerializers } = require("./index");
+
+beforeEach(() => {
+  clearSerializers();
+});
 
 describe("https://stackoverflow.com/questions/8164802/serialize-javascript-object-into-json-string", () => {
   it("should be solved by stash", () => {
@@ -58,7 +61,32 @@ describe("https://stackoverflow.com/questions/6487699/best-way-to-serialize-unse
       type: Person,
       save: (p) => [p.age],
     };
-    addSerializers([serializer]);
+    addSerializers(serializer);
+
+    var p1 = new Person(77);
+    expect(p1.isOld()).toBe(true);
+
+    var serialize = stash(p1);
+    var _p1 = unstash(serialize);
+    expect(_p1.isOld()).toBe(true);
+  });
+
+  it("is solved by stash if Person is a class", () => {
+    class Person {
+      constructor(age) {
+        this.age = age;
+        this.isOld = function () {
+          return this.age > 60;
+        };
+      }
+    }
+
+    // add a serializer
+    const serializer = {
+      type: Person,
+      save: (p) => [p.age],
+    };
+    addSerializers(serializer);
 
     var p1 = new Person(77);
     expect(p1.isOld()).toBe(true);
