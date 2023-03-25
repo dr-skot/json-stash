@@ -1,9 +1,8 @@
-import { getStasher as _getStasher } from "./stasher";
+export { getStasher } from "./stasher";
 export type { Serializer } from "./serializers";
 
-export const getStasher = _getStasher;
+import { getStasher } from "./stasher";
 
-// TODO there must be a more efficient way to do this
 // initialize a global default stasher and export its member functions
 const stasher = getStasher();
 
