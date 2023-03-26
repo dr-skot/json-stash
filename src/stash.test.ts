@@ -152,6 +152,25 @@ describe("stash", () => {
     }
   });
 
+  it("serializes TypedArray objects", () => {
+    [
+      Int8Array,
+      Uint8Array,
+      Uint8ClampedArray,
+      Int16Array,
+      Uint16Array,
+      Int32Array,
+      Uint32Array,
+      Float32Array,
+      Float64Array,
+    ].forEach((Type) => {
+      const input = new Type([1, 2, 3]);
+      const output = unstash(stash(input));
+      expect(output).toBeInstanceOf(Type);
+      expect(output).toEqual(input);
+    });
+  });
+
   it("handles object identity inside of Map", () => {
     const singleton = { value: 5 };
     const input = new Map([

@@ -76,6 +76,21 @@ export const DEFAULT_SERIALIZERS = [
       return set;
     },
   } as Serializer<Set<unknown>, unknown[]>,
+
+  ...[
+    Int8Array,
+    Uint8Array,
+    Uint8ClampedArray,
+    Int16Array,
+    Uint16Array,
+    Int32Array,
+    Uint32Array,
+    Float32Array,
+    Float64Array,
+  ].map((type) => ({
+    type,
+    save: (array: any) => [[...array]],
+  })),
 ] as Serializer<any, any>[];
 
 export function findSerializer(
