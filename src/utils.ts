@@ -2,6 +2,15 @@ export function isPlainObject(value: unknown): value is object {
   return value?.constructor === Object;
 }
 
+export function isVanilla(value: unknown) {
+  return (
+    isPlainObject(value) ||
+    Array.isArray(value) ||
+    typeof value === "string" ||
+    typeof value === "number"
+  );
+}
+
 // breadth-first traversal, no protection against circular references
 export function deepForEach(fn: (v: unknown) => void) {
   function recurse(node: unknown): void {

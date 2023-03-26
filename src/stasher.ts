@@ -1,12 +1,17 @@
 import { stash, unstash } from "./stash";
 import { getKey, type Serializer } from "./serializers";
+import { addSerializers } from "./index";
 
 export function getStasher() {
   let addedSerializers: Serializer<any, any>[] = [];
 
-  return {
+  const methods = {
     stash: (data: unknown, serializers: Serializer<any, any>[] = []) =>
-      stash(data, [...serializers, ...addedSerializers]),
+      stash(
+        data,
+        [...serializers, ...addedSerializers],
+        methods.addSerializers
+      ),
 
     unstash: (json: string, serializers: Serializer<any, any>[] = []) =>
       unstash(json, [...serializers, ...addedSerializers]),
@@ -25,6 +30,8 @@ export function getStasher() {
       clear(addedSerializers);
     },
   };
+
+  return methods;
 }
 
 function removeFirst<T>(xs: T[], test: (x: T) => boolean) {

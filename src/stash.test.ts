@@ -217,6 +217,25 @@ describe("stash", () => {
     expect(output.get("aldrin").buddy).toBe(output.get("armstrong"));
   });
 
+  it("uses the default serializer for unknown types", () => {
+    const input = new URL("https://example.com");
+    const output = unstash(stash(input));
+    expect(output).toBeInstanceOf(URL);
+    expect(output.toString()).toEqual(input.toString());
+  });
+
+  it("uses the default serializer for unknown types", () => {
+    class Person {
+      constructor(public name: string, age: number) {}
+    }
+    const input = new Person("Scott", 55);
+    const stashed = stash(input);
+    expect(stashed).toEqual('{"$type":"Person","data":{"name":"Scott"}}');
+    const output = unstash(stash(input));
+    expect(output).toBeInstanceOf(Person);
+    expect(output).toEqual(input);
+  });
+
   it("supports user-defined serializers", () => {
     class MoonGuy {
       name: string;
@@ -229,7 +248,6 @@ describe("stash", () => {
 
     const moonGuySerializer: Serializer<MoonGuy, [string, number]> = {
       type: MoonGuy,
-      key: "MoonGuy",
       save: (guy: MoonGuy) => [guy.name, guy.order],
     };
 

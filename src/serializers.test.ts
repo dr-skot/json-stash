@@ -1,4 +1,4 @@
-import { findSerializer } from "./serializers";
+import { defaultSerializer, findSerializer } from "./serializers";
 
 describe("the built-in symbol serializer", () => {
   const serializer = findSerializer(({ key }) => key === "symbol");
@@ -23,4 +23,20 @@ describe("the built-in symbol serializer", () => {
   });
 });
 
-describe("the built-in BigInt serializer", () => {});
+describe("the default serializer", function () {
+  it("should serialize an object with public properties", function () {
+    class Person {
+      constructor(public name: string, public age: number) {}
+    }
+    const simulator = defaultSerializer(Person);
+    const person = new Person("Madeline", 101);
+    const saved = simulator.save(person);
+    const loaded = simulator.load(saved);
+    expect(saved).toEqual({
+      name: "Madeline",
+      age: 101,
+    });
+    expect(loaded).toBeInstanceOf(Person);
+    expect(loaded).toEqual(person);
+  });
+});

@@ -8,8 +8,12 @@ export type StashRoot = {
   $: any;
 };
 
-export function stash(data: unknown, serializers?: Serializer<any, any>[]) {
-  const root = encode({ $: data }, serializers);
+export function stash(
+  data: unknown,
+  serializers?: Serializer<any, any>[],
+  addSerializers?: (...s: Serializer<any, any>[]) => void
+) {
+  const root = encode({ $: data }, serializers, addSerializers);
   return JSON.stringify(root.$);
 }
 
@@ -24,12 +28,14 @@ export function unstash(json: string, serializers?: Serializer<any, any>[]) {
 
 function encode(
   root: StashRoot,
-  serializers?: Serializer<any, any>[]
+  serializers?: Serializer<any, any>[],
+  addSerializers?: (...s: Serializer<any, any>[]) => void
 ): StashRoot {
   const saveRefs = getRefSaver();
   const { escape, unescapeAll } = getObjectEscaper();
   const encoded = deepMap(
-    (value, path) => serialize(saveRefs(path, escape(value)), serializers),
+    (value, path) =>
+      serialize(saveRefs(path, escape(value)), serializers, addSerializers),
     { depthFirst: false, inPlace: false, avoidCircular: false }
   )(root) as StashRoot;
   unescapeAll();

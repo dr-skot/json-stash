@@ -76,7 +76,10 @@ export const DEFAULT_SERIALIZERS = [
       return set;
     },
   } as Serializer<Set<unknown>, unknown[]>,
-
+  {
+    type: URL,
+    save: (url) => [url.toString()],
+  },
   ...[
     Int8Array,
     Uint8Array,
@@ -102,4 +105,16 @@ export function findSerializer(
 
 export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
+}
+
+export function defaultSerializer(type: any) {
+  return {
+    type,
+    save: (obj: Object) => ({ ...obj }),
+    load: (data: any, obj = new type()) => {
+      for (const k in obj) delete (obj as any)[k];
+      for (const k in data) (obj as any)[k] = data[k];
+      return obj;
+    },
+  };
 }

@@ -1,5 +1,10 @@
-import { hasOwnProperty, isPlainObject } from "./utils";
-import { findSerializer, getKey, type Serializer } from "./serializers";
+import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
+import {
+  defaultSerializer,
+  findSerializer,
+  getKey,
+  type Serializer,
+} from "./serializers";
 import { isEscaped } from "./escape";
 
 export type Deserializable = {
@@ -15,16 +20,25 @@ export function isDeserializable(value: unknown): value is Deserializable {
 
 export function serialize(
   value: unknown,
-  serializers: Serializer<any, any>[] = []
+  serializers: Serializer<any, any>[] = [],
+  addSerializers?: (...s: Serializer<any, any>[]) => void
 ) {
-  const serializer = findSerializer((s) => {
+  if (isVanilla(value)) return value;
+  let serializer = findSerializer((s) => {
     return (s.test || defaultTest(s))(value);
   }, serializers);
-  if (!serializer) return value;
-  return {
-    $type: getKey(serializer),
-    data: serializer.save(value),
+  if (!serializer) {
+    console.warn(`No serializer found for ${value}`);
+    const type = (value as Object).constructor;
+    if (!type) return value;
+    serializer = defaultSerializer(type);
+    addSerializers?.(serializer);
+  }
+  const result = {
+    $type: getKey(serializer!),
+    data: serializer!.save(value),
   };
+  return result;
 }
 
 export function deserialize(
