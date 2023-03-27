@@ -1,6 +1,11 @@
 import { stash, unstash } from "./stash";
-import { DEFAULT_SERIALIZERS, getKey, type Serializer } from "./serializers";
-import { addSerializers } from "./index";
+import {
+  DEFAULT_SERIALIZERS,
+  defaultSerializer,
+  getKey,
+  type Serializer,
+} from "./serializers";
+import { Type } from "./utils";
 
 export function getStasher() {
   let addedSerializers: Serializer<any, any>[] = [];
@@ -22,6 +27,10 @@ export function getStasher() {
 
     addSerializers(...serializers: Serializer<any, any>[]) {
       addedSerializers.splice(0, 0, ...serializers);
+    },
+
+    addClasses(...classes: Type<any>[]) {
+      methods.addSerializers(...classes.map(defaultSerializer));
     },
 
     removeSerializers(...keys: string[]) {

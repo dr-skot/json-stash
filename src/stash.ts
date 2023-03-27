@@ -58,15 +58,13 @@ function decode(
       findEscapes(node);
       if (isRef(node)) return node;
       if (isDeserializable(node)) {
-        const deserialized = refs.registerValue(
-          deserialize(node, serializers),
-          path
-        );
+        let deserialized = deserialize(node, serializers);
+        deserialized = refs.registerValue(deserialized, path);
         // node.data is just-parsed JSON, so no need to worry about circular refs
         if (hasRefs(node.data)) needsDeref.push([node, deserialized]);
         else if (findEscapes(node.data))
           needsUnescape.push([node, deserialized]);
-        return refs.registerValue(deserialized, path);
+        return deserialized;
       }
       return refs.registerValue(node, path);
     },

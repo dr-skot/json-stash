@@ -1,6 +1,9 @@
+import { Type } from "./utils";
+
 export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
-  type: any; // new (...args: any[]) => Type;
+  // but can also be a primitive type (e.g. `symbol`, `bigint`)
+  type: any;
 
   // returns the data needed to reconstruct the object
   save: (value: Type) => Data;
@@ -100,12 +103,12 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-export function defaultSerializer(type: any) {
+export function defaultSerializer<T>(type: Type<T>) {
   return {
     type,
-    save: (obj: Object) => ({ ...obj }),
-    load: (data: any, obj = new type()) => {
-      for (const k in obj) delete (obj as any)[k];
+    save: (obj: T) => ({ ...obj }),
+    load: (data: Partial<T>, obj = new type()) => {
+      for (const k in obj) delete obj[k];
       for (const k in data) (obj as any)[k] = data[k];
       return obj;
     },

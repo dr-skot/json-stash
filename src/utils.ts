@@ -77,3 +77,7 @@ export function evalVariableName(name: string, evalFunction: Function) {
     ? evalFunction(name)
     : undefined;
 }
+
+export interface Type<T> extends Function {
+  new (...args: any[]): T;
+}
