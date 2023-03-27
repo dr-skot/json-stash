@@ -25,5 +25,8 @@
     "serialijse": "0.3.0",
     "ts-jest": "29.0.5",
     "typescript": "~4.9.5"
+  },
+  "dependencies": {
+    "esserializer": "1.3.10"
   }
 }
