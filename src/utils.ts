@@ -4,10 +4,13 @@ export function isPlainObject(value: unknown): value is object {
 
 export function isVanilla(value: unknown) {
   return (
-    isPlainObject(value) ||
-    Array.isArray(value) ||
+    value === undefined ||
+    value === null ||
     typeof value === "string" ||
-    typeof value === "number"
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    Array.isArray(value) ||
+    isPlainObject(value)
   );
 }
 
@@ -67,4 +70,10 @@ export function hasOwnProperty(obj: object, key: string) {
 
 function appendPath(path: string, key: string | number) {
   return path ? `${path}.${key}` : `${key}`;
+}
+
+export function evalVariableName(name: string, evalFunction: Function) {
+  return name.match(/^[a-zA-Z_$][a-zA-Z_$0-9]*$/)
+    ? evalFunction(name)
+    : undefined;
 }

@@ -1,4 +1,5 @@
 import { unstash, stash, addSerializers, type Serializer } from "./index";
+import { evalVariableName } from "./utils";
 
 function expectStringifyToFail(input: unknown) {
   const output = JSON.parse(JSON.stringify(input));

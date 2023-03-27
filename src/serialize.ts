@@ -24,15 +24,28 @@ export function serialize(
   addSerializers?: (...s: Serializer<any, any>[]) => void
 ) {
   if (isVanilla(value)) return value;
+
+  // find a matching serializer in the list
   let serializer = findSerializer((s) => {
     return (s.test || defaultTest(s))(value);
   }, serializers);
+
   if (!serializer) {
-    console.warn(`No serializer found for ${value}`);
+    // can we extract an object type?
     const type = (value as Object).constructor;
-    if (!type) return value;
+    if (!type) {
+      // if not, punt
+      console.warn(`json-stash: no serializer found for ${value}`);
+      return value;
+    }
+    // otherwise generate a default serializer for the type
+    console.warn(`json-stash: using default serializer for ${type} ${value}`);
     serializer = defaultSerializer(type);
-    addSerializers?.(serializer);
+    if (addSerializers) {
+      // add the new serializer to the serializers list
+      console.warn(`json-stash: adding ${type} serializer to serializer list`);
+      addSerializers(serializer);
+    }
   }
   const result = {
     $type: getKey(serializer!),
@@ -62,7 +75,10 @@ export function reload(
   value: unknown,
   serializers: Serializer<any, any>[] = []
 ) {
-  const serializer = findSerializer((s) => getKey(s) === spec.$type);
+  const serializer = findSerializer(
+    (s) => getKey(s) === spec.$type,
+    serializers
+  );
   const data = spec.data;
   serializer?.load?.(data, value);
   return value;

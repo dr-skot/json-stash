@@ -272,15 +272,18 @@ describe("addSerializers", () => {
       save: (agent) => [agent.first, agent.last],
     };
 
-    let agent = unstash(stash(new Agent("James", "Bond")));
+    const stasher1 = getStasher();
+    const stasher2 = getStasher();
+
+    let agent = stasher2.unstash(stasher1.stash(new Agent("James", "Bond")));
     expect(agent.introduce).not.toBeDefined();
 
-    let stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
-    agent = unstash(stashed, [agentSerializer]);
+    let stashed = stasher1.stash(new Agent("James", "Bond"), [agentSerializer]);
+    agent = stasher2.unstash(stashed, [agentSerializer]);
     expect(agent.introduce()).toBe("My name is Bond. James Bond.");
 
-    stasher.addSerializers(agentSerializer);
-    agent = unstash(stash(new Agent("James", "Bond")));
+    stasher2.addSerializers(agentSerializer);
+    agent = stasher2.unstash(stashed);
     expect(agent.introduce()).toBe("My name is Bond. James Bond.");
   });
 });
