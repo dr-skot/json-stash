@@ -1,20 +1,24 @@
 import { stash, unstash } from "./stash";
-import { getKey, type Serializer } from "./serializers";
+import { DEFAULT_SERIALIZERS, getKey, type Serializer } from "./serializers";
 import { addSerializers } from "./index";
 
 export function getStasher() {
   let addedSerializers: Serializer<any, any>[] = [];
 
+  function allSerializers(nonce: Serializer<any, any>[] = []) {
+    return [...nonce, ...addedSerializers, ...DEFAULT_SERIALIZERS];
+  }
+
   const methods = {
     stash: (data: unknown, serializers: Serializer<any, any>[] = []) =>
-      stash(
-        data,
-        [...serializers, ...addedSerializers],
-        methods.addSerializers
-      ),
+      stash(data, allSerializers(serializers), methods.addSerializers),
 
     unstash: (json: string, serializers: Serializer<any, any>[] = []) =>
-      unstash(json, [...serializers, ...addedSerializers]),
+      unstash(json, [
+        ...serializers,
+        ...addedSerializers,
+        ...DEFAULT_SERIALIZERS,
+      ]),
 
     addSerializers(...serializers: Serializer<any, any>[]) {
       addedSerializers.splice(0, 0, ...serializers);

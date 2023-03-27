@@ -96,13 +96,6 @@ export const DEFAULT_SERIALIZERS = [
   })),
 ] as Serializer<any, any>[];
 
-export function findSerializer(
-  test: (s: Serializer<any, any>) => boolean,
-  serializers: Serializer<any, any>[] = []
-): Serializer<any, any> | undefined {
-  return serializers.find(test) || DEFAULT_SERIALIZERS.find(test);
-}
-
 export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }

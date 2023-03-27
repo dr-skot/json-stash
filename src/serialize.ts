@@ -1,10 +1,5 @@
 import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
-import {
-  defaultSerializer,
-  findSerializer,
-  getKey,
-  type Serializer,
-} from "./serializers";
+import { defaultSerializer, getKey, type Serializer } from "./serializers";
 import { isEscaped } from "./escape";
 
 export type Deserializable = {
@@ -26,9 +21,7 @@ export function serialize(
   if (isVanilla(value)) return value;
 
   // find a matching serializer in the list
-  let serializer = findSerializer((s) => {
-    return (s.test || defaultTest(s))(value);
-  }, serializers);
+  let serializer = serializers.find((s) => (s.test || defaultTest(s))(value));
 
   if (!serializer) {
     // can we extract an object type?
@@ -58,12 +51,9 @@ export function deserialize(
   spec: Deserializable,
   serializers: Serializer<any, any>[] = []
 ) {
-  const serializer = findSerializer(
-    (s) => getKey(s) === spec.$type,
-    serializers
-  );
+  const serializer = serializers.find((s) => getKey(s) === spec.$type);
   if (!serializer) {
-    console.warn(`No serializer found for ${spec.$type}`);
+    console.warn(`unstash: no serializer found for ${spec.$type}`);
     return spec;
   }
   const load = serializer.load || defaultLoader(serializer);
@@ -75,10 +65,7 @@ export function reload(
   value: unknown,
   serializers: Serializer<any, any>[] = []
 ) {
-  const serializer = findSerializer(
-    (s) => getKey(s) === spec.$type,
-    serializers
-  );
+  const serializer = serializers.find((s) => getKey(s) === spec.$type);
   const data = spec.data;
   serializer?.load?.(data, value);
   return value;

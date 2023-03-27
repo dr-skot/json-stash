@@ -1,7 +1,7 @@
-import { defaultSerializer, findSerializer } from "./serializers";
+import { DEFAULT_SERIALIZERS, defaultSerializer } from "./serializers";
 
 describe("the built-in symbol serializer", () => {
-  const serializer = findSerializer(({ key }) => key === "symbol");
+  const serializer = DEFAULT_SERIALIZERS.find(({ key }) => key === "symbol");
   it("tests for symbol", () => {
     expect(serializer?.test?.(Symbol())).toBe(true);
     expect(serializer?.test?.(Symbol("foo"))).toBe(true);
