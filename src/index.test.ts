@@ -1,47 +1,15 @@
-import { getStasher } from "./stasher";
-import { type Serializer } from "./serializers";
-
-const stasher = getStasher();
-const { stash, unstash, addSerializers } = stasher;
-function expectStringifyToFail(input: unknown) {
-  const output = JSON.parse(JSON.stringify(input));
-  expect(output).not.toEqual(input);
-}
-
-function expectStringifyToThrow(input: unknown) {
-  expect(() => JSON.stringify(input)).toThrow();
-}
-
-function expectStashToSucceed(input: unknown) {
-  const output = unstash(stash(input));
-  expect(output).toEqual(input);
-}
-
-describe("JSON.stringify", () => {
-  it("punts on non-primitive types", () => {
-    const eagle = {
-      crew: new Map([
-        ["driver", "Armstrong"],
-        ["shotgun", "Aldrin"],
-      ]),
-      landed: new Date("1969-07-21T02:56Z"),
-      search: /rock/g,
-    };
-    Object.values(eagle).forEach(expectStringifyToFail);
-    Object.values(eagle).forEach(expectStashToSucceed);
-  });
-
-  it("chokes on circular refs", () => {
-    const egoist = {} as any;
-    egoist.preoccupation = egoist;
-    expectStringifyToThrow(egoist);
-    expectStashToSucceed(egoist);
-  });
-});
+import {
+  stash,
+  unstash,
+  addSerializers,
+  clearSerializers,
+  getStasher,
+  type Serializer,
+} from "./index";
 
 describe("stash", () => {
   beforeEach(() => {
-    stasher.clearSerializers();
+    clearSerializers();
   });
   it("handles primitives just like JSON.stringify", () => {
     const inputs = [
@@ -76,7 +44,6 @@ describe("stash", () => {
   it("restores circular refs", () => {
     const input: { self?: unknown; num: number } = { num: 2 };
     input.self = input;
-    expectStringifyToThrow(input); // JSON stringify chokes
 
     const output = unstash(stash(input));
     expect(output).toEqual(input);
@@ -84,7 +51,6 @@ describe("stash", () => {
 
     // a more nested example
     const input2 = { a: 1, b: [4, 5, input], c: undefined };
-    expectStringifyToThrow(input); // JSON stringify chokes
 
     const output2 = unstash(stash(input2));
     expect(output2).toEqual(input2);
@@ -252,7 +218,7 @@ describe("stash", () => {
 
 describe("addSerializers", () => {
   beforeEach(() => {
-    stasher.clearSerializers();
+    clearSerializers();
   });
   it("adds a serializer to the default set", () => {
     class Agent {

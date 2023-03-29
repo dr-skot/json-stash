@@ -1,4 +1,4 @@
-import { Type } from "./utils";
+import { getOwnKeys, hasSymbolKeys, isPlainObject, Type } from "./utils";
 
 export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
@@ -61,6 +61,18 @@ export const DEFAULT_SERIALIZERS = [
   } as Serializer<Error, [string, string, string]>,
 
   {
+    // plain object with symbol keys
+    type: Object,
+    test: (obj) => isPlainObject(obj) && hasSymbolKeys(obj),
+    save: (obj) => getOwnKeys(obj).map((key) => [key, obj[key]]),
+    load: (data, obj = {}) => {
+      getOwnKeys(obj).forEach((key) => delete obj[key]);
+      for (const [key, value] of data) obj[key] = value;
+      return obj;
+    },
+  },
+
+  {
     type: Map,
     save: (map) => [...map],
     load: (data, map = new Map()) => {
@@ -79,10 +91,12 @@ export const DEFAULT_SERIALIZERS = [
       return set;
     },
   } as Serializer<Set<unknown>, unknown[]>,
+
   {
     type: URL,
     save: (url) => [url.toString()],
   },
+
   ...[
     Int8Array,
     Uint8Array,
@@ -103,10 +117,11 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-export function defaultSerializer<T>(type: Type<T>) {
+// TODO type `type` right... but Type<T> is causing problems
+export function defaultSerializer<T>(type: any) {
   return {
     type,
-    save: (obj: T) => ({ ...obj }),
+    save: (obj: T): Partial<T> => ({ ...obj }),
     load: (data: Partial<T>, obj = new type()) => {
       for (const k in obj) delete obj[k];
       for (const k in data) (obj as any)[k] = data[k];

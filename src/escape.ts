@@ -41,7 +41,7 @@ export function getObjectEscaper() {
     cache.add(value);
     return escapeObject(value);
   }
-  function findEscapes(value: unknown) {
+  function registerEscapes(value: unknown) {
     let result = false;
     deepMap(
       (node) => {
@@ -61,5 +61,5 @@ export function getObjectEscaper() {
     cache.clear();
   }
 
-  return { escape, findEscapes, unescapeAll };
+  return { escape, registerEscapes, unescapeAll };
 }

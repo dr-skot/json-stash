@@ -10,7 +10,7 @@ export function isVanilla(value: unknown) {
     typeof value === "number" ||
     typeof value === "boolean" ||
     Array.isArray(value) ||
-    isPlainObject(value)
+    (isPlainObject(value) && !hasSymbolKeys(value))
   );
 }
 
@@ -80,4 +80,21 @@ export function evalVariableName(name: string, evalFunction: Function) {
 
 export interface Type<T> extends Function {
   new (...args: any[]): T;
+}
+
+export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {
+  return [
+    ...Object.getOwnPropertyNames(obj),
+    ...Object.getOwnPropertySymbols(obj),
+  ] as (keyof T)[];
+}
+
+export function hasSymbolKeys(obj: object) {
+  return Object.getOwnPropertySymbols(obj).length > 0;
+}
+
+export function entriesWithSymbols<T extends Object>(
+  obj: T
+): [keyof T, T[keyof T]][] {
+  return getOwnKeys(obj).map((key) => [key, obj[key]]);
 }

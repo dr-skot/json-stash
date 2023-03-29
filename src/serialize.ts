@@ -1,4 +1,9 @@
-import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
+import {
+  hasOwnProperty,
+  hasSymbolKeys,
+  isPlainObject,
+  isVanilla,
+} from "./utils";
 import { defaultSerializer, getKey, type Serializer } from "./serializers";
 import { isEscaped } from "./escape";
 

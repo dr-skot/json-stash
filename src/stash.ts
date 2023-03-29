@@ -47,7 +47,7 @@ function decode(
   serializers?: Serializer<any, any>[]
 ): StashRoot {
   const refs = getRefResolver(root);
-  const { findEscapes, unescapeAll } = getObjectEscaper();
+  const { registerEscapes, unescapeAll } = getObjectEscaper();
 
   // first pass: deserialize special types, note which ones need dereferencing or unescaping
   const needsDeref: any[] = [];
@@ -55,14 +55,14 @@ function decode(
 
   root = deepMap(
     (node, path) => {
-      findEscapes(node);
+      registerEscapes(node);
       if (isRef(node)) return node;
       if (isDeserializable(node)) {
         let deserialized = deserialize(node, serializers);
         deserialized = refs.registerValue(deserialized, path);
         // node.data is just-parsed JSON, so no need to worry about circular refs
         if (hasRefs(node.data)) needsDeref.push([node, deserialized]);
-        else if (findEscapes(node.data))
+        else if (registerEscapes(node.data))
           needsUnescape.push([node, deserialized]);
         return deserialized;
       }
@@ -75,7 +75,7 @@ function decode(
   refs.resolve(root);
   needsDeref.forEach(([node, deserialized]) => {
     node = { ...node, data: refs.resolve(node.data) };
-    if (findEscapes(node.data)) needsUnescape.push([node, deserialized]);
+    if (registerEscapes(node.data)) needsUnescape.push([node, deserialized]);
     reload(node, deserialized, serializers);
   });
 
