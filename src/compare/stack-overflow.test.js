@@ -1,4 +1,9 @@
-const { stash, unstash, addSerializers, clearSerializers } = require("./index");
+const {
+  stash,
+  unstash,
+  addSerializers,
+  clearSerializers,
+} = require("../index");
 
 beforeEach(() => {
   clearSerializers();
