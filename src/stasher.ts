@@ -40,7 +40,7 @@ export function getStasher() {
     },
 
     clearSerializers() {
-      clear(addedSerializers);
+      addedSerializers.splice(0, addedSerializers.length);
     },
   };
 
@@ -50,8 +50,4 @@ export function getStasher() {
 function removeFirst<T>(xs: T[], test: (x: T) => boolean) {
   const index = xs.findIndex(test);
   if (index !== -1) xs.splice(index, 1);
-}
-
-function clear<T>(xs: T[]) {
-  xs.splice(0, xs.length);
 }

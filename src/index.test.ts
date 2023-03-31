@@ -6,6 +6,7 @@ import {
   getStasher,
   type Serializer,
 } from "./index";
+import { isPlainObject } from "./utils";
 
 describe("stash", () => {
   beforeEach(() => {
@@ -78,6 +79,46 @@ describe("stash", () => {
     ]);
     const output = unstash(stash(input));
     expect(output).toBeInstanceOf(Map);
+    expect(output).toEqual(input);
+  });
+
+  it("seralizes ArrayBuffers", () => {
+    const input = new ArrayBuffer(8);
+    const output = unstash(stash(input));
+    expect(output).toBeInstanceOf(ArrayBuffer);
+    expect(output.byteLength).toEqual(input.byteLength);
+    expect(output).toEqual(input);
+  });
+
+  it("serializes all the arrays", () => {
+    [
+      Int8Array,
+      Uint8Array,
+      Uint8ClampedArray,
+      Int16Array,
+      Uint16Array,
+      Int32Array,
+      Uint32Array,
+      Float32Array,
+      Float64Array,
+    ].forEach((arrayType) => {
+      const input = new arrayType([1, 2, 3]);
+      const output = unstash(stash(input));
+      expect(output).toBeInstanceOf(arrayType);
+      expect(output).toEqual(input);
+    });
+    [BigInt64Array, BigUint64Array].forEach((arrayType) => {
+      const input = new arrayType([BigInt(1), BigInt(2), BigInt(3)]);
+      const output = unstash(stash(input));
+      expect(output).toBeInstanceOf(arrayType);
+      expect(output).toEqual(input);
+    });
+  });
+
+  it("serializes Infinity and NaN", () => {
+    const input = [Infinity, -Infinity, NaN];
+    console.log(stash(input));
+    const output = unstash(stash(input));
     expect(output).toEqual(input);
   });
 

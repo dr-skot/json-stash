@@ -7,7 +7,8 @@ export function isVanilla(value: unknown) {
     value === undefined ||
     value === null ||
     typeof value === "string" ||
-    typeof value === "number" ||
+    (typeof value === "number" &&
+      ![Infinity, -Infinity, NaN].includes(value)) ||
     typeof value === "boolean" ||
     Array.isArray(value) ||
     (isPlainObject(value) && !hasSymbolKeys(value))

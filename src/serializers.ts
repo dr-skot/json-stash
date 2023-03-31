@@ -97,6 +97,29 @@ export const DEFAULT_SERIALIZERS = [
     save: (url) => [url.toString()],
   },
 
+  {
+    type: typeof Infinity,
+    key: "number",
+    test: (x: any) => [Infinity, -Infinity, NaN].includes(x),
+    save: (x: number) =>
+      ({
+        [Infinity]: "Infinity",
+        [-Infinity]: "-Infinity",
+        [NaN]: "NaN",
+      }[x]),
+    load: (x: string) =>
+      ({
+        Infinity: Infinity,
+        "-Infinity": -Infinity,
+        NaN: NaN,
+      }[x]),
+  },
+  {
+    type: ArrayBuffer,
+    save: (buffer) => [...new Uint8Array(buffer)],
+    load: (data) => new Uint8Array(data).buffer,
+  },
+
   ...[
     Int8Array,
     Uint8Array,
@@ -107,6 +130,8 @@ export const DEFAULT_SERIALIZERS = [
     Uint32Array,
     Float32Array,
     Float64Array,
+    BigInt64Array,
+    BigUint64Array,
   ].map((type) => ({
     type,
     save: (array: any) => [[...array]],
