@@ -48,6 +48,8 @@ export function getRefResolver(root: StashRoot) {
   // root is just-parsed JSON, so no need to worry about circular refs
   deepForEach((node) => {
     if (isRef(node) && !refs.has(node.$ref)) {
+      // save the ref node here for now as a placeholder
+      // it will be overwritten with the actual value by `registerValue`
       refs.set(node.$ref, node);
     }
   })(root);
