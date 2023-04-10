@@ -1,9 +1,13 @@
 # json-stash
 
-Serialize javascript data to JSON. Like `JSON.stringify`, but better.
+Serialize anything. `JSON.stringify` on steroids.
 - handles circular and duplicate references
-- supports `Date`, `RegExp`, `Map`, and `Set` out of the box
-- supports user-defined types
+- supports all your favorite built-in types: 
+  `Date`, `Error`, `RegExp`, 
+  `Map`, `Set`, all the `Arrays`, `ArrayBuffer`
+  `BigInt`, `Infinity`, `NaN`, `Symbol`
+- handles public-property classes automatically
+- can be configured to handle anything else using custom serializers
 
 ## Installation
 
@@ -72,7 +76,7 @@ unstashed = unstash(stash(presidents));
 expect(unstashed[22]).toBe(unstashed[24]);
 ```
 
-### Non-vanilla types
+### Built-in types
 
 `stash` handles many common types that `JSON.stringify` punts on.
 
@@ -103,9 +107,11 @@ unstash(stash(collect));
 // /rock/g
 ```
 
-Supported out of the box are `Date`, `RegExp`, `Map`, `Set`, `Symbol`, `Error`, `BigInt`.
+Supported out of the box are `Date`, `Error`, `RegExp`,
+`Map`, `Set`, all the `Arrays`, `ArrayBuffer`
+`BigInt`, `Infinity`, `NaN`, and `Symbol`.
 
-You can support other types by adding your own serializers. See [User-defined types](#user-defined-types) below.
+You can support anything else by adding your own serializers. See [User-defined types](#user-defined-types) below.
 
 ## How it works
 
@@ -130,8 +136,7 @@ stash(/search/gi);
 Each supported type has a serializer that defines how the `data` is saved and restored.
 See [User-defined types](#user-defined-types) for more about serializers.
 
-If your input contains objects with `$ref` or `$type` properties, `stash` escapes them so that `unstash` 
-won't try to process them as references or special types.
+In order not to choke on input that already contains `$ref` or `$type` properties, `stash` escapes them.
 
 ```javascript
 stash({ $type: "fake" }); 
@@ -141,7 +146,7 @@ unstash(stash({ $type: "fake" }));
 // { $type: "fake" }
 ```
 
-If your input contains `$esc` properties, `stash` can deal with that too.
+And to not choke on input that already contains `$esc` properties, `stash` has a way of dealing with that too.
 
 ```javascript
 stash({ $esc: false });
@@ -156,9 +161,11 @@ unstash(stash({ $esc: false, $$esc: null }));
 
 ## User-defined types
 
-You can add support for any object type by providing a serializer.
+You can add support for any object type by providing a custom serializer.
 
 ```javascript
+import { addSerializers, stash, unstash } from 'json-stash';
+
 class Agent {
   constructor(first, last) {
     this.first = first;
@@ -174,20 +181,18 @@ const agentSerializer = {
   save: (agent) => [agent.first, agent.last],
 };
 
-stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
-agent = unstash(stashed, [agentSerializer]);
+addSerializers(agentSerializer);
+
+agent = unstash(stash(new Agent("James", "Bond")));
 agent.introduce();
 // 'My name is Bond. James Bond.'
 ```
 
-If you don't want to pass serializers with every call to `stash` and `unstash`,
-you can add them globally.
+If you don't want to add your serializers globally, you can pass them as parameters to `stash` and `unstash`.
 
 ```typescript
-import { addSerializers, stash, unstash } from 'json-stash';
-
-addSerializers([agentSerializer]);
-unstash(stash(new Agent("James", "Bond"))).introduce();
+const stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
+unstash(stashed, [agentSerializer]).introduce();
 // 'My name is Bond. James Bond.'
 ```
 
@@ -286,7 +291,6 @@ This allows new serializers to override old ones.
 
 ## Todo
 
-- Support other common javascript types
 - Log helpful messages when errors happen
 - Do typescript better
 - Add a changelog
