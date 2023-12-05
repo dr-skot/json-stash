@@ -143,8 +143,9 @@ export function getKey(serializer: Serializer<any, any>) {
 }
 
 // TODO type `type` right... but Type<T> is causing problems
-export function defaultSerializer<T>(type: any) {
+export function defaultSerializer<T>(type: any, key = type.name) {
   return {
+    key,
     type,
     save: (obj: T): Partial<T> => ({ ...obj }),
     load: (data: Partial<T>, obj = new type()) => {

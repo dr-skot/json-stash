@@ -29,8 +29,13 @@ export function getStasher() {
       addedSerializers.splice(0, 0, ...serializers);
     },
 
-    addClasses(...classes: any[]) {
-      methods.addSerializers(...classes.map(defaultSerializer));
+    // classes can be passed in as a class or a tuple of [class, key]
+    addClasses(...classes: (Type<unknown> | [Type<unknown>, string])[]) {
+      methods.addSerializers(
+        ...classes.map((c) =>
+          Array.isArray(c) ? defaultSerializer(...c) : defaultSerializer(c)
+        )
+      );
     },
 
     removeSerializers(...keys: string[]) {

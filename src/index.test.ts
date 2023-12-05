@@ -292,6 +292,29 @@ describe("addClasses", () => {
     const unstashed3 = stasher2.unstash(stashed);
     expect(unstashed3.introduce).not.toBeDefined();
   });
+
+  it("allows you to name classes", () => {
+    class Agent {
+      first: string;
+      last: string;
+      constructor(first: string, last: string) {
+        this.first = first;
+        this.last = last;
+      }
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+
+    const stasher = getStasher();
+    stasher.addClasses([Agent, "SpecialAgent"]);
+
+    const stashed = stasher.stash(new Agent("James", "Bond"));
+    expect(stashed).toContain('"$type":"SpecialAgent"');
+
+    const unstashed = stasher.unstash(stashed);
+    expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+  });
 });
 
 describe("addSerializers", () => {
