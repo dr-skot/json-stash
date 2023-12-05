@@ -1,4 +1,4 @@
-import { addSerializers, stash, unstash } from "./src";
+import { addSerializers, addClasses, stash, unstash } from "./src";
 
 describe("the README examples", () => {
   it("compares with JSON.stringify", () => {
@@ -184,6 +184,7 @@ describe("the README examples", () => {
 
   it("demonstrates a custom serializer", () => {
     let agent, stashed;
+
     // README text
     class Agent {
       // @ts-ignore
@@ -193,6 +194,7 @@ describe("the README examples", () => {
         // @ts-ignore
         this.last = last;
       }
+
       introduce() {
         // @ts-ignore
         return `My name is ${this.last}. ${this.first} ${this.last}.`;
@@ -213,6 +215,108 @@ describe("the README examples", () => {
 
     stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
     agent = unstash(stashed, [agentSerializer]);
+    expect(agent.introduce()).toBe("My name is Bond. James Bond.");
+  });
+
+  it("handles public-property classes which have been added", () => {
+    let bond, unstashed;
+
+    class Agent {
+      constructor(public first: string, public last: string) {}
+
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+
+    // README text
+    /*
+    class Agent {
+      constructor(first, last) {
+        this.first = first;
+        this.last = last;
+      }
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+    */
+    addClasses(Agent);
+    bond = new Agent("James", "Bond");
+    addClasses((bond as Object).constructor);
+    expect(Agent).toBe(bond.constructor);
+    expect(bond instanceof Agent).toBe(true);
+    unstashed = unstash(stash(bond));
+    expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+    // end README text
+  });
+
+  it("automagically handles public-property classes which are present at stash and unstash", () => {
+    let bond, unstashed;
+
+    class Agent {
+      constructor(public first: string, public last: string) {}
+
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+
+    // README text
+    /*
+    class Agent {
+      constructor(first, last) {
+        this.first = first;
+        this.last = last;
+      }
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+    */
+    bond = new Agent("James", "Bond");
+    unstashed = unstash(stash(bond));
+    expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+    // end README text
+  });
+
+  it("automagically handles public-property classes which are present at stash and unstash", () => {
+    let agent;
+
+    class Agent {
+      constructor(private first: string, private last: string) {}
+
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+
+      serialize() {
+        return [this.first, this.last];
+      }
+    }
+
+    // README text
+    /*
+    class Agent {
+      constructor(first, last) {
+        this.#first = first;
+        this.#last = last;
+      }
+      introduce() {
+        return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
+      }
+      serialize() {
+        return [this.#first, this.#last];
+      }
+    }
+     */
+
+    addSerializers({
+      type: Agent,
+      save: (agent) => agent.serialize(),
+    });
+    agent = unstash(stash(new Agent("James", "Bond")));
+    agent.introduce();
     expect(agent.introduce()).toBe("My name is Bond. James Bond.");
   });
 });

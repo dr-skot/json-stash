@@ -4,7 +4,7 @@ Serialize anything. `JSON.stringify` on steroids.
 - handles circular and duplicate references
 - supports all your favorite built-in types: 
   `Date`, `Error`, `RegExp`, 
-  `Map`, `Set`, all the `Arrays`, `ArrayBuffer`
+  `Map`, `Set`, all the `Array`s, `ArrayBuffer`
   `BigInt`, `Infinity`, `NaN`, `Symbol`
 - handles public-property classes automatically
 - can be configured to handle anything else using custom serializers
@@ -108,10 +108,64 @@ unstash(stash(collect));
 ```
 
 Supported out of the box are `Date`, `Error`, `RegExp`,
-`Map`, `Set`, all the `Arrays`, `ArrayBuffer`
+`Map`, `Set`, all the `Array`s, `ArrayBuffer`
 `BigInt`, `Infinity`, `NaN`, and `Symbol`.
 
-You can support anything else by adding your own serializers. See [User-defined types](#user-defined-types) below.
+You can support just about anything else using `addClasses` or `addSerializers`.
+
+### Classes with public properties
+
+Use `addClasses` to support simple classes with public properties.
+
+```javascript
+import { addClasses, stash, unstash } from 'json-stash';
+
+class Agent {
+  constructor(first, last) {
+    this.first = first;
+    this.last = last;
+  }
+  introduce() {
+    return `My name is ${this.last}. ${this.first} ${this.last}.`;
+  }
+}
+
+addClasses(Agent);
+
+bond = new Agent("James", "Bond");
+const unstashed = unstash(stash(bond));
+expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+```
+
+## Custom serializers
+
+For objects with private properties you'll need to provide a serializer.
+
+```javascript
+import { addSerializers, stash, unstash } from 'json-stash';
+
+class Agent {
+  constructor(first, last) {
+    this.#first = first;
+    this.#last = last;
+  }
+  introduce() {
+    return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
+  }
+  serialize() {
+    return [this.#first, this.#last];
+  }
+}
+
+addSerializers({
+  type: Agent,
+  save: (agent) => agent.serialize(),
+});
+agent = unstash(stash(new Agent("James", "Bond")));
+agent.introduce();
+// 'My name is Bond. James Bond.'
+```
+
 
 ## How it works
 
@@ -168,21 +222,21 @@ import { addSerializers, stash, unstash } from 'json-stash';
 
 class Agent {
   constructor(first, last) {
-    this.first = first;
-    this.last = last;
+    this.#first = first;
+    this.#last = last;
   }
   introduce() {
-    return `My name is ${this.last}. ${this.first} ${this.last}.`;
+    return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
+  }
+  serialize() {
+    return [this.#first, this.#last];
   }
 }
 
-const agentSerializer = {
+addSerializers({
   type: Agent,
-  save: (agent) => [agent.first, agent.last],
-};
-
-addSerializers(agentSerializer);
-
+  save: (agent) => agent.serialize(),
+});
 agent = unstash(stash(new Agent("James", "Bond")));
 agent.introduce();
 // 'My name is Bond. James Bond.'
