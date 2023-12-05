@@ -29,7 +29,7 @@ export function getStasher() {
       addedSerializers.splice(0, 0, ...serializers);
     },
 
-    addClasses(...classes: Type<any>[]) {
+    addClasses(...classes: any[]) {
       methods.addSerializers(...classes.map(defaultSerializer));
     },
 

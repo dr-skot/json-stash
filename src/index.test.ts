@@ -257,6 +257,43 @@ describe("stash", () => {
   });
 });
 
+describe("addClasses", () => {
+  beforeEach(() => {
+    clearSerializers();
+  });
+  it("adds a class to the default set", () => {
+    class Agent {
+      first: string;
+      last: string;
+      constructor(first: string, last: string) {
+        this.first = first;
+        this.last = last;
+      }
+      introduce() {
+        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+      }
+    }
+
+    const stasher1 = getStasher();
+    const stasher2 = getStasher();
+
+    stasher1.addClasses(Agent);
+
+    const stashed = stasher1.stash(new Agent("James", "Bond"));
+    const unstashed1 = stasher2.unstash(stashed);
+    expect(unstashed1.introduce).not.toBeDefined();
+
+    stasher2.addClasses(Agent);
+    const unstashed2 = stasher2.unstash(stashed);
+    expect(unstashed2.introduce()).toBe("My name is Bond. James Bond.");
+
+    // addClasses creates serialziers, so class support disappears if you clear serializers
+    stasher2.clearSerializers();
+    const unstashed3 = stasher2.unstash(stashed);
+    expect(unstashed3.introduce).not.toBeDefined();
+  });
+});
+
 describe("addSerializers", () => {
   beforeEach(() => {
     clearSerializers();

@@ -1,4 +1,5 @@
 import { DEFAULT_SERIALIZERS, defaultSerializer } from "./serializers";
+import { defaultTest } from "./serialize";
 
 describe("the built-in symbol serializer", () => {
   const serializer = DEFAULT_SERIALIZERS.find(({ key }) => key === "symbol");
@@ -28,15 +29,16 @@ describe("the default serializer", function () {
     class Person {
       constructor(public name: string, public age: number) {}
     }
-    const simulator = defaultSerializer(Person);
+    const serializer = defaultSerializer(Person);
     const person = new Person("Madeline", 101);
-    const saved = simulator.save(person);
-    const loaded = simulator.load(saved);
+    const saved = serializer.save(person);
+    const loaded = serializer.load(saved);
     expect(saved).toEqual({
       name: "Madeline",
       age: 101,
     });
     expect(loaded).toBeInstanceOf(Person);
     expect(loaded).toEqual(person);
+    expect(defaultTest(serializer)(person)).toBe(true);
   });
 });
