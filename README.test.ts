@@ -275,23 +275,33 @@ describe("the README examples", () => {
     }
     */
     bond = new Agent("James", "Bond");
+    const parsed = JSON.parse(JSON.stringify(bond));
+    expect(() => parsed.introduce()).toThrow(
+      "parsed.introduce is not a function"
+    );
     unstashed = unstash(stash(bond));
     expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
     // end README text
+    console.log({ unstashed, parsed });
   });
 
-  it("automagically handles public-property classes which are present at stash and unstash", () => {
+  it("handles private-property classes with serializers", () => {
     let agent;
 
     class Agent {
-      constructor(private first: string, private last: string) {}
+      #first: string;
+      #last: string;
+      constructor(first: string, last: string) {
+        this.#first = first;
+        this.#last = last;
+      }
 
       introduce() {
-        return `My name is ${this.last}. ${this.first} ${this.last}.`;
+        return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
       }
 
       serialize() {
-        return [this.first, this.last];
+        return [this.#first, this.#last];
       }
     }
 
@@ -315,8 +325,20 @@ describe("the README examples", () => {
       type: Agent,
       save: (agent) => agent.serialize(),
     });
+    const unparsed = JSON.parse(JSON.stringify(new Agent("James", "Bond")));
+    expect(unparsed).toEqual({});
+    expect(() => unparsed.introduce()).toThrow(
+      "unparsed.introduce is not a function"
+    );
     agent = unstash(stash(new Agent("James", "Bond")));
     agent.introduce();
     expect(agent.introduce()).toBe("My name is Bond. James Bond.");
+  });
+
+  it("punts if no serializer is found", () => {
+    function blah() {
+      return "blah";
+    }
+    expect(unstash(stash(blah))()).not.toBe("blah");
   });
 });

@@ -68,12 +68,12 @@ ben = { name: "Harrison" };
 presidents = { 22: grover, 23: ben, 24: grover };
 
 unstringified = JSON.parse(JSON.stringify(presidents));
-// 22 and 24 are copies of each other
-expect(unstringified[22]).not.toBe(unstringified[24]);
+unstringified[22] === unstringified[24];
+// false -- 22 and 24 are duplicates of each other
 
 unstashed = unstash(stash(presidents));
-// 22 and 24 are the same object
-expect(unstashed[22]).toBe(unstashed[24]);
+unstashed[22] === unstashed[24];
+// true -- 22 and 24 are the same object
 ```
 
 ### Built-in types
@@ -129,12 +129,19 @@ class Agent {
     return `My name is ${this.last}. ${this.first} ${this.last}.`;
   }
 }
-
 addClasses(Agent);
 
 bond = new Agent("James", "Bond");
+
+const parsed = JSON.parse(JSON.stringify(bond));
+// { first: 'James', last: 'Bond' }
+parsed.introduce();
+// TypeError: parsed.introduce is not a function
+
 const unstashed = unstash(stash(bond));
-expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+// Agent { first: 'James', last: 'Bond' }
+unstashed.introduce();
+// 'My name is Bond. James Bond.'
 ```
 
 ## Custom serializers
@@ -161,10 +168,18 @@ const agentSerializer = {
   type: Agent, 
   save: (agent) => agent.serialize(),
 };
-
 addSerializers(agentSerializer);
-agent = unstash(stash(new Agent("James", "Bond")));
-agent.introduce();
+
+const bond = new Agent("James", "Bond");
+
+const parsed = JSON.parse(JSON.stringify(bond));
+// {}
+parsed.introduce();
+// TypeError: parsed.introduce is not a function
+
+const unstashed = unstash(stash(bond));
+// Agent {}
+unstashed.introduce();
 // 'My name is Bond. James Bond.'
 ```
 
@@ -176,9 +191,7 @@ unstash(stashed, [agentSerializer]).introduce();
 // 'My name is Bond. James Bond.'
 ```
 
-Okay, but what's a serializer?
-
-See the section called [Serializers](#serializers) for a complete run-down.
+Okay, but what's a serializer? See [Serializers](#serializers) for a complete run-down.
 
 ## How it works
 
@@ -228,6 +241,8 @@ unstash(stash({ $esc: false, $$esc: null }));
 
 ## Serializers
 
+When `stash` encounters a non-vanilla object, it looks for a serializer to stringify it.
+
 ```typescript
 interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
@@ -247,10 +262,11 @@ interface Serializer<Type, Data> {
 }
 ```
 
-`stash` will use `test(obj)` to detect objects of type `type`, and render them as 
-`{ $type: key, data: save(obj) }`. 
+If `stash` finds a serializer for which `test(object)` returns true, it serializes the object as 
+`{ $type: key, data: serializer.save(object) }`. 
 
-`unstash` will use `key` to look up the serializer and call `serializer.load(data)` to reconstruct the object.
+Later, when `unstash` encounters that string, it looks for a serializer with a matching `key` and 
+calls `serializer.load(data)` to deserialize the object.
 
 Since `load`, `test`, and `key` have default values, the simplest serializer is just a `type` and a `save` function 
 that returns an array of arguments to be passed to `new type`.
