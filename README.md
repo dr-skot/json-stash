@@ -157,15 +157,28 @@ class Agent {
   }
 }
 
-addSerializers({
-  type: Agent,
+const agentSerializer = {
+  type: Agent, 
   save: (agent) => agent.serialize(),
-});
+};
+
+addSerializers(agentSerializer);
 agent = unstash(stash(new Agent("James", "Bond")));
 agent.introduce();
 // 'My name is Bond. James Bond.'
 ```
 
+If you don't want to add your serializers globally, you can pass them as parameters to `stash` and `unstash`.
+
+```typescript
+const stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
+unstash(stashed, [agentSerializer]).introduce();
+// 'My name is Bond. James Bond.'
+```
+
+Okay, but what's a serializer?
+
+See the section called [Serializers](#serializers) for a complete run-down.
 
 ## How it works
 
@@ -188,7 +201,7 @@ stash(/search/gi);
 ```
 
 Each supported type has a serializer that defines how the `data` is saved and restored.
-See [User-defined types](#user-defined-types) for more about serializers.
+See [Serializers](#serializers) for more about serializers.
 
 In order not to choke on input that already contains `$ref` or `$type` properties, `stash` escapes them.
 
@@ -213,44 +226,7 @@ unstash(stash({ $esc: false, $$esc: null }));
 // { $esc: false, $$esc: null }
 ```
 
-## User-defined types
-
-You can add support for any object type by providing a custom serializer.
-
-```javascript
-import { addSerializers, stash, unstash } from 'json-stash';
-
-class Agent {
-  constructor(first, last) {
-    this.#first = first;
-    this.#last = last;
-  }
-  introduce() {
-    return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
-  }
-  serialize() {
-    return [this.#first, this.#last];
-  }
-}
-
-addSerializers({
-  type: Agent,
-  save: (agent) => agent.serialize(),
-});
-agent = unstash(stash(new Agent("James", "Bond")));
-agent.introduce();
-// 'My name is Bond. James Bond.'
-```
-
-If you don't want to add your serializers globally, you can pass them as parameters to `stash` and `unstash`.
-
-```typescript
-const stashed = stash(new Agent("James", "Bond"), [agentSerializer]);
-unstash(stashed, [agentSerializer]).introduce();
-// 'My name is Bond. James Bond.'
-```
-
-Okay, but what's a serializer?
+## Serializers
 
 ```typescript
 interface Serializer<Type, Data> {
