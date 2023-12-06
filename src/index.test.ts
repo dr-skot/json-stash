@@ -189,6 +189,7 @@ describe("stash", () => {
       type: MoonGuy,
       key: "MoonGuy",
       save: (guy: MoonGuy) => [guy.name, guy.order],
+      load: ([name, order]: [string, number]) => new MoonGuy(name, order),
     };
 
     const eagleCrew = [new MoonGuy("Armstrong", 1), new MoonGuy("Aldrin", 2)];
@@ -337,6 +338,7 @@ describe("addSerializers", () => {
     const agentSerializer: Serializer<Agent, [string, string]> = {
       type: Agent,
       save: (agent) => [agent.first, agent.last],
+      load: ([first, last]) => new Agent(first, last),
     };
 
     const stasher1 = getStasher();
@@ -359,11 +361,69 @@ describe("stashers", () => {
   it("have different serializer sets", () => {
     const stasher1 = getStasher();
     const stasher2 = getStasher();
-    stasher2.addSerializers({ type: Date, save: () => "not supported" });
+    stasher2.addSerializers({
+      type: Date,
+      save: () => "not supported",
+      load: () => new Date(),
+    });
     const d = new Date("2020-01-01");
     expect(stasher1.stash(d)).toBe(
-      '{"$type":"Date","data":["2020-01-01T00:00:00.000Z"]}'
+      '{"$type":"Date","data":"2020-01-01T00:00:00.000Z"}'
     );
     expect(stasher2.stash(d)).toBe('{"$type":"Date","data":"not supported"}');
+  });
+});
+
+describe("identical objects", () => {
+  it("correctly handles identical RegExps", () => {
+    const re = /.*/;
+    const input = [re, re];
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output[0]).toBe(output[1]);
+  });
+  it("correctly handles identical URLs", () => {
+    const url = new URL('https://www.google.com/search?q="json-stash"');
+    const input = [url, url];
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output[0]).toBe(output[1]);
+  });
+  it("handles duplicate objects inside save data", () => {
+    const a = /a/;
+    const b = /b/;
+    const c = /c/;
+    class RegExPair {
+      #regex1: RegExp;
+      #regex2: RegExp;
+      constructor(regex1: RegExp, regex2: RegExp) {
+        this.#regex1 = regex1;
+        this.#regex2 = regex2;
+      }
+      serialize() {
+        return [this.#regex1, this.#regex2];
+      }
+      set(regex1: RegExp, regex2: RegExp) {
+        this.#regex1 = regex1;
+        this.#regex2 = regex2;
+      }
+    }
+    const input = [new RegExPair(a, b), new RegExPair(a, c)];
+    console.log(input[0].serialize());
+    console.log(input[1].serialize());
+    addSerializers({
+      type: RegExPair,
+      save: (x: RegExPair) => x.serialize(),
+      load: ([r1, r2]: [RegExp, RegExp], existing = new RegExPair(r1, r2)) => {
+        existing.set(r1, r2);
+        return existing;
+      },
+    });
+    console.log("stash(input)", stash(input));
+    const output = unstash(stash(input));
+    console.log(output[0].serialize());
+    console.log(output[1].serialize());
+    expect(output[0].serialize()).toEqual(input[0].serialize());
+    expect(output[1].serialize()).toEqual(input[1].serialize());
   });
 });

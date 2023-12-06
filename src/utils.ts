@@ -79,6 +79,10 @@ export function evalVariableName(name: string, evalFunction: Function) {
     : undefined;
 }
 
+export function isVariableName(name: string) {
+  return name.match(/^[a-zA-Z_$][a-zA-Z_$0-9]*$/);
+}
+
 export interface Type<T> extends Function {
   new (...args: any[]): T;
 }

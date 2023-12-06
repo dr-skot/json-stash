@@ -3,6 +3,7 @@ const {
   unstash,
   addSerializers,
   clearSerializers,
+  addClasses,
 } = require("../index");
 
 beforeEach(() => {
@@ -20,6 +21,7 @@ describe("https://stackoverflow.com/questions/8164802/serialize-javascript-objec
     const serializer = {
       type: MyClass1,
       save: (obj) => [obj.id, obj.member],
+      load: (data) => new MyClass1(...data),
     };
 
     const stashed = stash(myobject, [serializer]);
@@ -65,6 +67,7 @@ describe("https://stackoverflow.com/questions/6487699/best-way-to-serialize-unse
     const serializer = {
       type: Person,
       save: (p) => [p.age],
+      load: (data) => new Person(...data),
     };
     addSerializers(serializer);
 
@@ -90,6 +93,7 @@ describe("https://stackoverflow.com/questions/6487699/best-way-to-serialize-unse
     const serializer = {
       type: Person,
       save: (p) => [p.age],
+      load: (data) => new Person(...data),
     };
     addSerializers(serializer);
 

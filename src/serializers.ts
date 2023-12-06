@@ -5,31 +5,33 @@ export interface Serializer<Type, Data> {
   // but can also be a primitive type (e.g. `symbol`, `bigint`)
   type: any;
 
-  // returns the data needed to reconstruct the object
-  save: (value: Type) => Data;
-
-  // reconstructs the object from the data returned by `save`; default is `(data) => new type(...data)`
-  // if `existing` is defined, repopulate it with `data`; otherwise return a new object
-  // you only need to support the `existing` parameter if `Data` (return value of `save`) can contain objects
-  load?: (data: Data, existing?: Type) => Type;
-
   // detects objects of this type; default is `(obj) => obj instanceof type`
   test?: (value: any) => boolean;
 
+  // returns the data needed to reconstruct the object
+  save: (value: Type) => Data;
+
   // unique identifier for this type; default is `type.name`
   key?: string;
+
+  // reconstructs the object from the data returned by `save`
+  // if `existing` is defined, repopulate it with `data`; otherwise return a new object
+  // you only need to support the `existing` parameter if `Data` (return value of `save`) can contain objects
+  load: (data: Data, existing?: Type) => Type;
 }
 
 export const DEFAULT_SERIALIZERS = [
   {
     type: Date,
-    save: (value: Date) => [value.toISOString()],
-  } as Serializer<Date, [string]>,
+    save: (value: Date) => value.toISOString(),
+    load: (iso) => new Date(iso),
+  },
 
   {
     type: RegExp,
     save: (value: RegExp) => [value.source, value.flags],
-  } as Serializer<RegExp, [string, string]>,
+    load: ([source, flags]) => new RegExp(source, flags),
+  },
 
   {
     type: typeof Symbol(),
@@ -39,7 +41,7 @@ export const DEFAULT_SERIALIZERS = [
     load: ([description, key]) => {
       return key ? Symbol.for(key) : Symbol(description);
     },
-  } as Serializer<symbol, [string | undefined, string | undefined]>,
+  },
 
   {
     type: typeof BigInt(0),
@@ -47,7 +49,7 @@ export const DEFAULT_SERIALIZERS = [
     test: (x: any) => typeof x === "bigint",
     save: (x: bigint) => x.toString(),
     load: (str) => BigInt(str),
-  } as Serializer<bigint, string>,
+  },
 
   {
     type: Error,
@@ -58,7 +60,7 @@ export const DEFAULT_SERIALIZERS = [
       error.stack = stack;
       return error;
     },
-  } as Serializer<Error, [string, string, string]>,
+  },
 
   {
     // plain object with symbol keys
@@ -80,7 +82,7 @@ export const DEFAULT_SERIALIZERS = [
       for (const [k, v] of data) map.set(k, v);
       return map;
     },
-  } as Serializer<Map<unknown, unknown>, [unknown, unknown][]>,
+  },
 
   {
     type: Set,
@@ -94,7 +96,8 @@ export const DEFAULT_SERIALIZERS = [
 
   {
     type: URL,
-    save: (url) => [url.toString()],
+    save: (url) => url.toString(),
+    load: (str) => new URL(str),
   },
 
   {
@@ -114,6 +117,7 @@ export const DEFAULT_SERIALIZERS = [
         NaN: NaN,
       }[x]),
   },
+
   {
     type: ArrayBuffer,
     save: (buffer) => [...new Uint8Array(buffer)],
@@ -134,7 +138,8 @@ export const DEFAULT_SERIALIZERS = [
     BigUint64Array,
   ].map((type) => ({
     type,
-    save: (array: any) => [[...array]],
+    save: (array: any) => [...array],
+    load: (data: any[]) => new type(data),
   })),
 ] as Serializer<any, any>[];
 
@@ -142,8 +147,7 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-// TODO type `type` right... but Type<T> is causing problems
-export function defaultSerializer<T>(type: any, key = type.name) {
+export function defaultSerializer<T>(type: Type<T>, key = type.name) {
   return {
     key,
     type,
