@@ -134,12 +134,12 @@ unstash(stash(collect));
 ```
 
 Supported out of the box are `Date`, `Error`, `RegExp`,
-`Map`, `Set`, all the `Array`s, `ArrayBuffer`
+`Map`, `Set`, all the `Array`s, `ArrayBuffer`,
 `BigInt`, `Infinity`, `NaN`, and `Symbol`.
 
 ### Class instances
 
-For classes with public properties, just add them to the `stash` class registry with `addClasses`.
+For classes with public properties, just add them to `stash`'s class registry with `addClasses`.
 
 ```javascript
 import { addClasses, stash, unstash } from 'json-stash';
@@ -259,12 +259,12 @@ When `stash` encounters a non-vanilla object, it searches its serializer list fo
 `true` for `test(object)`. 
 
 If it finds one, it uses that serializer's `key` and `save` properties to serialize the object as `{ $type: key, data: save(object) }`.
-If no serializer is found, it punts and uses `JSON.stringify`.
+(If no serializer is found, it punts and uses `JSON.stringify`.)
 
 Later, when `unstash` encounters `{ $type: key, data: data }`, it looks for a serializer with a matching `key`.
 
 If it finds one, it calls `load(data)` to deserialize the object.
-If no serializer is found, it punts and uses `JSON.parse`.
+(If no serializer is found, it punts and uses `JSON.parse`.)
 
 To illustrate, here are the built-in serializers for `Date` and `RegExp`:
 
@@ -298,11 +298,21 @@ const serializers = [{
 Also if you have multiple classes with the same `type.name` (because they come from different packages for example),
 you'll want to give their serializers different `key`s so there's no conflict.
 
+Speaking of conflict, if two serializers return `test(obj) === true` (on `stash`) or have the same `key` (on `unstash`), which one wins?
+They're checked in this order:
+
+1. serializers passed directly to `stash` or `unstash`
+2. serializers added with `addSerializers` (starting with the most recently added)
+3. built-in serializers
+
+This allows newly-added serializers to override old ones.
+
 ### Nested objects
 
-A single-argument `load` function works great if your data doesn't reference any external objects.
-If it does, `load` might be called a second time, to resolve circular or duplicate references. 
-The second call will pass an `existing` parameter, which `load` should mutate in place.
+A single-argument `load` function works fine if your data doesn't reference any external objects.
+If it does, you'll need a two-parameter function, because `load` might be called twice, 
+in order to resolve circular or duplicate references, and the second call 
+will pass an `existing` parameter which `load` should mutate in place:
 
 On the first call,
 - `data` may contain unresolved object placeholders of the form `{ $ref: "$.path.to.object" }`
@@ -334,23 +344,9 @@ const serializers = [{
 }];
 ```
 
-The optional serializer properties are:
-
-- `test`: detects objects `stash` should use this serializer for; defaults to `(x) => x instance of type`
-- `key`: identifies the serializer `unstash` should use to resolve `{ $type: key }`; defaults to `type.name`.
-  If you have types with the same `type.name`
-  (because they're from different packages for example) you'll need to give them distinct `key`s to keep them straight
-
-If two serializers return `test(obj) === true` (on `stash`) or have the same `key` (on `unstash`), which one wins?
-They're checked in this order:
-
-1. serializers passed directly to `stash` or `unstash`
-2. serializers added with `addSerializers` (starting with the most recently added)
-3. built-in serializers
-
-This allows new serializers to override old ones.
-
 ## The encoding
+
+The output is what you'd expect from `JSON.stringify`, with these enhancements:
 
 Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
 
