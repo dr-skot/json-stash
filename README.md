@@ -9,11 +9,15 @@ Serialize anything. `JSON.stringify` on steroids.
 - handles class instances with public properties automatically
 - can be configured to handle just about anything else using custom serializers
 
+1.4k when minified and gzipped. No dependencies.
+
+
 ## Installation
 
 ```bash
 npm install json-stash
 ```
+
 
 ## Usage
 
@@ -30,6 +34,17 @@ expect(typeof stashed).toBe("string");
 expect(unstashed).toEqual(anything);
 ```
 
+Or if you need to play well with others,
+  
+```javascript
+import { getStasher } from 'json-stash';
+const stasher = getStasher();
+
+const stashed = stasher.stash(anything);
+const unstashed = stasher.unstash(stashed);
+```
+
+
 ## It's like JSON.stringify
 
 When used on vanilla objects, `stash` is equivalent to `JSON.stringify`
@@ -43,6 +58,7 @@ JSON.stringify(dude);
 stash(dude);
 // '{"name":"Dude","heads":1,"legs":["left","right"]}'
 ```
+
 
 ## Only better
 
@@ -156,7 +172,7 @@ stash(vipList);
 // '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
 ```
 
-Special types are rendered as `{ $type: "type", data: <data> }`.
+Special types are rendered as `{ $type: <type>, data: <data> }`.
 
 ```javascript
 stash(/search/gi);
@@ -164,7 +180,7 @@ stash(/search/gi);
 ```
 
 Each supported type has a serializer that defines how the `data` is saved and restored.
-See [Serializers](#serializers) for more about serializers.
+See [Serializers](#serializers) for details.
 
 ### Escaping special properties
 
@@ -189,6 +205,7 @@ unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
 // { $ref: "not a ref", $$ref: "also not" }
 ```
 
+
 ## User-defined types
 
 ### Public-property classes
@@ -211,11 +228,13 @@ addClasses(Agent);
 
 const bond = new Agent("James", "Bond");
 
+// stringify: nope
 JSON.stringify(bond);
 // '{"first":"James","last":"Bond"}'
 JSON.parse(JSON.stringify(bond)).introduce();
 // TypeError: JSON.parse(...).introduce is not a function
 
+// stash ftw
 stash(bond);
 // '{"$type":"Agent","data":{"first":"James","last":"Bond"}}'
 unstash(stash(bond)).introduce();
@@ -246,7 +265,7 @@ stash(new CIAAgent("Ethan", "Hunt"));
 ### Anything else
 
 For other types, you'll need to provide a custom serializer.
-For example, say your agent class has private properties:
+For example, say your `Agent` class has private properties:
 
 ```javascript
 class Agent {
@@ -281,7 +300,7 @@ addSerializers(agentSerializer);
 
 const bond = new Agent("James", "Bond");
 
-// JSON.stringify: nope
+// stringify: nope
 const parsed = JSON.parse(JSON.stringify(bond));
 // {}
 parsed.introduce();
@@ -386,6 +405,66 @@ Answer: They're checked in this order:
 3. built-in serializers
 
 This allows newly-added serializers to override old ones.
+
+## Playing well with others
+
+The above examples use a global stasher object, which any client can `addClasses` or `addSerializers` to. 
+This might be what you want in a small project, but if you're writing a library or working on something bigger, 
+you can use `getStasher` to create an independent stasher
+with its own serializer list.
+
+```javascript
+import { getStasher } from 'json-stash';
+const stasher = getStasher();
+stasher.addClasses(...someClasses);
+stasher.addSerializers(...someSerializers);
+stasher.stash(something);
+```
+
+Or, if you prefer the bare function names,
+
+```javascript
+import { getStasher } from 'json-stash';
+const { stash, unstash, addClasses, addSerializers } = getStasher();
+```
+
+`getStasher` returns a plain object, not a class instance, so you don't need to `bind`.
+
+
+## Other API bits
+
+### Removing serializers
+
+You can remove all serializers added to a stasher with `clearSerializers`
+
+```javascript
+stasher.clearSerializers();
+```
+  
+or remove particular ones by passing their keys to `removeSerializers`.
+
+```javascript
+stasher.removeSerializers('MI5Agent', 'CIAAgent');
+```
+
+This removes only the most recently added serializer for each key. So if one
+`MI5Agent` serializer is overriding an earlier one,
+`removeSerializers('MI5Agent')` will expose the previous one.
+
+Only serializers added with `addSerializers` can be removed.
+You can't remove the built-in serializers (`Date`, etc)—but you can override them 
+by adding your own serializers with the same keys.
+
+### Just-this-time serializers
+
+`stash` and `unstash` take an optional second parameter, an array of serializers.
+These will be used for the current operation only, not added to the stasher's
+serializer registry. Don't forget to `unstash` with the same serializers you used to `stash`!
+
+```javascript
+const stashed = stash(something, [unsharedSerializer]);
+const unstashed = unstash(stashed, [unsharedSerializer]);
+```
 
 
 ## Todo
