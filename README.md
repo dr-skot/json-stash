@@ -137,7 +137,61 @@ Supported out of the box are `Date`, `Error`, `RegExp`,
 `Map`, `Set`, all the `Array`s, `ArrayBuffer`,
 `BigInt`, `Infinity`, `NaN`, and `Symbol`.
 
-### Class instances
+Most other types can be supported using the `addClasses` and `addSerializers` functions. 
+See [User-defined types](#user-defined-types) for details.
+
+
+## The encoding
+
+The output is what you'd expect from `JSON.stringify`, with these enhancements:
+
+Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
+
+```javascript
+egoist = {};
+egoist.preoccupation = egoist;
+vipList = [egoist, egoist];
+
+stash(vipList);
+// '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
+```
+
+Special types are rendered as `{ $type: "type", data: <data> }`.
+
+```javascript
+stash(/search/gi);
+// '{"$type":"RegExp","data":["search","gi"]}'
+```
+
+Each supported type has a serializer that defines how the `data` is saved and restored.
+See [Serializers](#serializers) for more about serializers.
+
+### Escaping special properties
+
+In order not to choke on input that already contains `$ref` or `$type` properties, `stash` escapes them by prepending a `$`,
+and `unstash` duly unescapes them.
+
+```javascript
+stash({ $type: "fake" });
+// '{"$$type":"fake"}'
+
+unstash(stash({ $type: "fake" }));
+// { $type: "fake" }
+```
+
+This cascades in case objects have `$$type` or `$$ref` properties too
+
+```javascript
+stash({ $ref: "not a ref", $$ref: "also not" });
+// '{"$$ref":"not a ref","$$$ref":"also not"}'
+
+unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
+// { $ref: "not a ref", $$ref: "also not" }
+```
+
+## User-defined types
+
+### Public-property classes
 
 For classes with public properties, just add them to `stash`'s class registry with `addClasses`.
 
@@ -189,7 +243,7 @@ stash(new CIAAgent("Ethan", "Hunt"));
 // '{"$type":"CIAAgent","data":{"first":"Ethan","last":"Hunt"}}'
 ```
 
-### Almost anything else
+### Anything else
 
 For other types, you'll need to provide a custom serializer.
 For example, for an agent class with private properties:
@@ -299,7 +353,7 @@ Also if you have multiple classes with the same `type.name` (because they come f
 you'll want to give their serializers different `key`s so there's no conflict.
 
 Speaking of conflict, if two serializers return `test(obj) === true` (on `stash`) or have the same `key` (on `unstash`), which one wins?
-They're checked in this order:
+Answer: They're checked in this order:
 
 1. serializers passed directly to `stash` or `unstash`
 2. serializers added with `addSerializers` (starting with the most recently added)
@@ -343,55 +397,6 @@ const serializers = [{
   },
 }];
 ```
-
-## The encoding
-
-The output is what you'd expect from `JSON.stringify`, with these enhancements:
-
-Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
-
-```javascript
-egoist = {};
-egoist.preoccupation = egoist;
-vipList = [egoist, egoist];
-
-stash(vipList);
-// '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
-```
-
-Special types are rendered as `{ $type: "type", data: <data> }`.
-
-```javascript
-stash(/search/gi);
-// '{"$type":"RegExp","data":["search","gi"]}'
-```
-
-Each supported type has a serializer that defines how the `data` is saved and restored.
-See [Serializers](#serializers) for more about serializers.
-
-### Escaping special properties
-
-In order not to choke on input that already contains `$ref` or `$type` properties, `stash` escapes them by prepending a `$`,
-and `unstash` duly unescapes them.
-
-```javascript
-stash({ $type: "fake" });
-// '{"$$type":"fake"}'
-
-unstash(stash({ $type: "fake" }));
-// { $type: "fake" }
-```
-
-This cascades in case objects have `$$type` or `$$ref` properties too
-
-```javascript
-stash({ $ref: "not a ref", $$ref: "also not" });
-// '{"$$ref":"not a ref","$$$ref":"also not"}'
-
-unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
-// { $ref: "not a ref", $$ref: "also not" }
-```
-
 
 
 ## Todo
