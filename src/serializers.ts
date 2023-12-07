@@ -147,7 +147,7 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-export function defaultSerializer<T>(type: Type<T>, key = type.name) {
+export function publicClassSerializer<T>(type: Type<T>, key = type.name) {
   return {
     key,
     type,

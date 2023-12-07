@@ -4,56 +4,49 @@ import { deepMap } from "./utils";
 import { getObjectEscaper } from "./escape";
 import { Serializer } from "./serializers";
 
+// a temporary root object that holds the data to be stashed or unstashed
 export type StashRoot = {
   $: any;
 };
 
-export function stash(
-  data: unknown,
-  serializers?: Serializer<any, any>[],
-  addSerializers?: (...s: Serializer<any, any>[]) => void
-) {
-  const root = encode({ $: data }, serializers, addSerializers);
-  return JSON.stringify(root.$);
+export function stash(data: unknown, serializers?: Serializer<any, any>[]) {
+  // wrap data in a StashRoot
+  const root: StashRoot = { $: data };
+
+  // use a ref tracker to preserve object identity
+  const saveRefs = getRefSaver();
+
+  // if objects in the data are using our special property names ('$type' and '$ref'),
+  // we'll escape those while serializing, and unescape them after we're done
+  const { escape, unescapeAll } = getObjectEscaper();
+
+  const encoded = deepMap(
+    (value, path) => serialize(saveRefs(path, escape(value)), serializers),
+    { depthFirst: false, inPlace: false, avoidCircular: false }
+  )(root) as StashRoot;
+
+  // unescape escaped properties
+  unescapeAll();
+
+  // pop the result out of the StashRoot before stringifying
+  return JSON.stringify(encoded.$);
 }
 
 export function unstash(json: string, serializers?: Serializer<any, any>[]) {
+  // wrap the JSON in a StashRoot
   const root = { $: JSON.parse(json) };
-  return decode(root, serializers).$;
-}
 
-//
-// internals
-//
-
-function encode(
-  root: StashRoot,
-  serializers?: Serializer<any, any>[],
-  addSerializers?: (...s: Serializer<any, any>[]) => void
-): StashRoot {
-  const saveRefs = getRefSaver();
-  const { escape, unescapeAll } = getObjectEscaper();
-  const encoded = deepMap(
-    (value, path) =>
-      serialize(saveRefs(path, escape(value)), serializers, addSerializers),
-    { depthFirst: false, inPlace: false, avoidCircular: false }
-  )(root) as StashRoot;
-  unescapeAll();
-  return encoded;
-}
-
-function decode(
-  root: StashRoot,
-  serializers?: Serializer<any, any>[]
-): StashRoot {
+  // use a ref tracker to preserve object identity
   const refs = getRefResolver(root);
+
+  // we'll register objects that need unescaping as we go, and unescape them after all the deserializing is done
   const { registerEscapes, unescapeAll } = getObjectEscaper();
 
   // first pass: deserialize special types, note which ones need dereferencing or unescaping
   const needsDeref: any[] = [];
   const needsUnescape: any[] = [];
 
-  root = deepMap(
+  const decoded = deepMap(
     (node, path) => {
       registerEscapes(node);
       if (isRef(node)) return node;
@@ -72,7 +65,7 @@ function decode(
   )(root) as StashRoot;
 
   // second pass: resolve refs, note which deserialized objects need unescaping
-  refs.resolve(root);
+  refs.resolve(decoded);
   needsDeref.forEach(([node, deserialized]) => {
     node = { ...node, data: refs.resolve(node.data) };
     if (registerEscapes(node.data)) needsUnescape.push([node, deserialized]);
@@ -85,5 +78,6 @@ function decode(
     reload(node, deserialized, serializers);
   });
 
-  return root;
+  // pop the result out of the StashRoot
+  return decoded.$;
 }

@@ -1,29 +1,35 @@
 import { stash, unstash } from "./stash";
 import {
   DEFAULT_SERIALIZERS,
-  defaultSerializer,
+  publicClassSerializer,
   getKey,
   type Serializer,
 } from "./serializers";
 import { Type } from "./utils";
 
+// a stasher can `stash` and `unstash` objects, using the default serializers
+// plus any additional serializers added to with `addSerializers`
 export function getStasher() {
   let addedSerializers: Serializer<any, any>[] = [];
 
-  function allSerializers(nonce: Serializer<any, any>[] = []) {
-    return [...nonce, ...addedSerializers, ...DEFAULT_SERIALIZERS];
-  }
-
   const methods = {
-    stash: (data: unknown, serializers: Serializer<any, any>[] = []) =>
-      stash(data, allSerializers(serializers), methods.addSerializers),
-
-    unstash: (json: string, serializers: Serializer<any, any>[] = []) =>
-      unstash(json, [
+    stash: (data: unknown, serializers: Serializer<any, any>[] = []) => {
+      const allSerializers = [
         ...serializers,
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ]),
+      ];
+      return stash(data, allSerializers);
+    },
+
+    unstash: (json: string, serializers: Serializer<any, any>[] = []) => {
+      const allSerializers = [
+        ...serializers,
+        ...addedSerializers,
+        ...DEFAULT_SERIALIZERS,
+      ];
+      return unstash(json, allSerializers);
+    },
 
     addSerializers(...serializers: Serializer<any, any>[]) {
       addedSerializers.splice(0, 0, ...serializers);
@@ -33,7 +39,9 @@ export function getStasher() {
     addClasses(...classes: (Type<unknown> | [Type<unknown>, string])[]) {
       methods.addSerializers(
         ...classes.map((c) =>
-          Array.isArray(c) ? defaultSerializer(...c) : defaultSerializer(c)
+          Array.isArray(c)
+            ? publicClassSerializer(...c)
+            : publicClassSerializer(c)
         )
       );
     },

@@ -42,7 +42,6 @@ export function getRefSaver(): RefSaver {
 
 export function getRefResolver(root: StashRoot) {
   const refs = new Map<string, unknown>();
-  let refState: "unresolved" | "resolving" | "resolved" = "unresolved";
 
   // find all the ref paths in the object
   // root is just-parsed JSON, so no need to worry about circular refs

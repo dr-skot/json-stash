@@ -1,7 +1,9 @@
+// a regular old key-value pair object that isn't an instance of a class other than Object
 export function isPlainObject(value: unknown): value is object {
   return value?.constructor === Object;
 }
 
+// a value that can be reliably serialized by JSON.stringify
 export function isVanilla(value: unknown) {
   return (
     value === undefined ||
@@ -20,16 +22,15 @@ export function deepForEach(fn: (v: unknown) => void) {
   function recurse(node: unknown): void {
     fn(node);
     if (Array.isArray(node)) node.forEach(recurse);
-    if (isPlainObject(node)) eachValue(node, recurse);
+    if (isPlainObject(node)) Object.values(node).forEach(recurse);
   }
 
   return recurse;
 }
 
-export function eachValue(obj: object, fn: (v: unknown, k: string) => void) {
-  Object.entries(obj).forEach(([k, v]) => fn(v, k));
-}
-
+// returns a copy, unless inPlace is true
+// depth-first traversal, unless depthFirst is false
+// avoids circular references, unless avoidCircular is false
 export function deepMap(
   fn: (v: unknown, path: string) => unknown,
   opts = { inPlace: true, depthFirst: true, avoidCircular: true }
@@ -73,16 +74,6 @@ function appendPath(path: string, key: string | number) {
   return path ? `${path}.${key}` : `${key}`;
 }
 
-export function evalVariableName(name: string, evalFunction: Function) {
-  return name.match(/^[a-zA-Z_$][a-zA-Z_$0-9]*$/)
-    ? evalFunction(name)
-    : undefined;
-}
-
-export function isVariableName(name: string) {
-  return name.match(/^[a-zA-Z_$][a-zA-Z_$0-9]*$/);
-}
-
 export interface Type<T> extends Function {
   new (...args: any[]): T;
 }
@@ -96,10 +87,4 @@ export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {
 
 export function hasSymbolKeys(obj: object) {
   return Object.getOwnPropertySymbols(obj).length > 0;
-}
-
-export function entriesWithSymbols<T extends Object>(
-  obj: T
-): [keyof T, T[keyof T]][] {
-  return getOwnKeys(obj).map((key) => [key, obj[key]]);
 }
