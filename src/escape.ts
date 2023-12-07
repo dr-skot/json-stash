@@ -2,31 +2,39 @@ import { deepMap, hasOwnProperty, isPlainObject } from "./utils";
 
 // a data object that happens to have keys $ref, $type, or $esc
 // needs to be escaped so stash doesn't mistakenly try to dereference or deserialize or unescape it
-const keyIsUnsafe = (key: string) => key.match(/^\$(ref|type|esc)$/);
+const keyIsUnsafe = (key: string) => /^\$+(ref|type)$/.test(key);
+const keyIsEscaped = (key: string) => /^\$\$+(ref|type)$/.test(key);
 
 // any object with an $esc property will return false when passed to isRef() or isDeserializable()
-export const isEscaped = (value: object) => hasOwnProperty(value, "$esc");
+export const isEscaped = (value: object) =>
+  Object.keys(value).some(keyIsEscaped);
 
 function escapeObject(value: object) {
-  // if the object already has an $esc property, don't overwrite it!
-  // prefix $ until we have an unused key we can use as a marker
-  let escapeKey = "$esc";
-  while (hasOwnProperty(value, escapeKey)) escapeKey = "$" + escapeKey;
-
-  // we'll delete this marker later
-  (value as any)[escapeKey] = true;
+  Object.keys(value)
+    .sort()
+    .filter(keyIsUnsafe)
+    .forEach((key) => {
+      const newKey = "$" + key;
+      (value as any)[newKey] = (value as any)[key];
+      delete (value as any)[key];
+    });
 
   return value;
 }
 
 function unescapeObject(value: unknown) {
   if (!isPlainObject(value)) return value;
-  if (!hasOwnProperty(value, "$esc")) return value;
 
-  // delete the esc marker (it's the /^\$+esc$/ key with the most $s)
-  let escapeKey = "$esc";
-  while (hasOwnProperty(value, escapeKey)) escapeKey = "$" + escapeKey;
-  delete (value as any)[escapeKey.slice(1)];
+  Object.keys(value)
+    .sort()
+    .reverse()
+    .forEach((key) => {
+      if (keyIsEscaped(key)) {
+        const newKey = key.slice(1);
+        (value as any)[newKey] = (value as any)[key];
+        delete (value as any)[key];
+      }
+    });
 
   return value;
 }

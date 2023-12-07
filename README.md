@@ -168,7 +168,7 @@ unstash(stash(bond)).introduce();
 // 'My name is Bond. James Bond.'
 ```
 
-Note that `addClasses` uses the `<class>.name` as the `$type` key by default. 
+Note that `addClasses` uses `<class>.name` as the `$type` key by default. 
 If you have two classes with the same `<class>.name` (because they come from different packages for example),
 give them distinct `$type` keys by passing `[<class>, <key>]` pairs to `addClasses`.
 
@@ -238,7 +238,7 @@ Serializers specify how `stash` handles non-vanilla (non-JSON.stringifiable) obj
 
 ```typescript
 interface Serializer<Type, Data> {
-  // the object type to serialize, typically a class constructor (e.g. `Date`);
+  // the object type to serialize (e.g. `Date`);
   type: new (...args: any[]) => Type;
 
   // unique identifier for this type; default is `type.name`
@@ -255,20 +255,18 @@ interface Serializer<Type, Data> {
 }
 ```
 
-When stash encounters a non-vanilla object, it searches its serializer list for a serializer that returns
+When `stash` encounters a non-vanilla object, it searches its serializer list for a serializer that returns
 `true` for `test(object)`. 
 
-If it finds one, it uses the serializer's `key` and `save` properties to serialize the object as `{ $type: key, data: save(object) }`.
-If no serializer is found, it punts with `JSON.stringify`.
+If it finds one, it uses that serializer's `key` and `save` properties to serialize the object as `{ $type: key, data: save(object) }`.
+If no serializer is found, it punts and uses `JSON.stringify`.
 
 Later, when `unstash` encounters `{ $type: key, data: data }`, it looks for a serializer with a matching `key`.
 
 If it finds one, it calls `load(data)` to deserialize the object.
-If no serializer is found, it punts with `JSON.parse`.
+If no serializer is found, it punts and uses `JSON.parse`.
 
-The default `key` is `type.name`. The default `test` is `(obj) => obj instanceof type`.
-
-For example, here are the built-in serializers for `Date` and `RegExp`:
+To illustrate, here are the built-in serializers for `Date` and `RegExp`:
 
 ```typescript
 const serializers = [{
@@ -281,6 +279,24 @@ const serializers = [{
   load: ([source, flags]: [string, string]) => new RegExp(source, flags)
 }];
 ```
+
+### `key` and `test`
+
+The `key` and `test` properties are optional because they have sensible defaults. The default `key` is `type.name`, and the default `test` is `(obj) => obj instanceof type`. This is usually what you want,
+but there are exceptions. For example, here's the built-in serializer for `BigInt`:
+
+```typescript
+const serializers = [{
+  type: typeof BigInt(0),
+  key: "bigint",
+  test: (x: any) => typeof x === "bigint",
+  save: (x: bigint) => x.toString(),
+  load: (str) => BigInt(str),
+}];
+```
+
+Also if you have multiple classes with the same `type.name` (because they come from different packages for example),
+you'll want to give their serializers different `key`s so there's no conflict.
 
 ### Nested objects
 
@@ -334,7 +350,7 @@ They're checked in this order:
 
 This allows new serializers to override old ones.
 
-## JSON encoding
+## The encoding
 
 Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
 
@@ -357,27 +373,27 @@ stash(/search/gi);
 Each supported type has a serializer that defines how the `data` is saved and restored.
 See [Serializers](#serializers) for more about serializers.
 
-In order not to choke on input that already contains `$ref` or `$type` properties, `stash` escapes them.
+### Escaping special properties
+
+In order not to choke on input that already contains `$ref` or `$type` properties, `stash` escapes them by prepending a `$`,
+and `unstash` duly unescapes them.
 
 ```javascript
-stash({ $type: "fake" }); 
-// '{"$type":"fake","$esc":true}'
+stash({ $type: "fake" });
+// '{"$$type":"fake"}'
 
 unstash(stash({ $type: "fake" }));
 // { $type: "fake" }
 ```
 
-And to not choke on input that already contains `$esc` properties, `stash` has a way of dealing with that too.
+This cascades in case objects have `$$type` or `$$ref` properties too
 
 ```javascript
-stash({ $esc: false });
-// '{"$esc":false,"$$esc":true}'
+stash({ $ref: "not a ref", $$ref: "also not" });
+// '{"$$ref":"not a ref","$$$ref":"also not"}'
 
-stash({ $esc: false, $$esc: null});
-// '{"$esc":false,"$$esc":null,"$$$esc":true}'
-
-unstash(stash({ $esc: false, $$esc: null }));
-// { $esc: false, $$esc: null }
+unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
+// { $ref: "not a ref", $$ref: "also not" }
 ```
 
 

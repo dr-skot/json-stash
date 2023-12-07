@@ -40,7 +40,8 @@ export function getStasher() {
 
     removeSerializers(...keys: string[]) {
       keys.forEach((key) => {
-        removeFirst(addedSerializers, (s) => getKey(s) === key);
+        const index = addedSerializers.findIndex((s) => getKey(s) === key);
+        if (index !== -1) addedSerializers.splice(index, 1);
       });
     },
 
@@ -50,9 +51,4 @@ export function getStasher() {
   };
 
   return methods;
-}
-
-function removeFirst<T>(xs: T[], test: (x: T) => boolean) {
-  const index = xs.findIndex(test);
-  if (index !== -1) xs.splice(index, 1);
 }

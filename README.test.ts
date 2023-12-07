@@ -581,7 +581,7 @@ In order not to choke on input that already contains `$ref` or `$type` propertie
 
 ```javascript
 stash({ $type: "fake" });
-// '{"$type":"fake","$esc":true}'
+// '{"$$type":"fake"}'
 
 unstash(stash({ $type: "fake" }));
 // { $type: "fake" }
@@ -590,35 +590,31 @@ unstash(stash({ $type: "fake" }));
 
 describe("Escaping", () => {
   it("should work", () => {
-    expect(stash({ $type: "fake" })).toBe('{"$type":"fake","$esc":true}');
+    expect(stash({ $type: "fake" })).toBe('{"$$type":"fake"}');
     expect(unstash(stash({ $type: "fake" }))).toEqual({ $type: "fake" });
   });
 });
 
 /*
-And to not choke on input that already contains `$esc` properties, `stash` has a way of dealing with that too.
+This cascades in case objects have `$$type` properties too
 
 ```javascript
-stash({ $esc: false });
-// '{"$esc":false,"$$esc":true}'
+stash({ $ref: "not a ref", $$ref: "also not" });
+// '{"$$$ref":"also not","$$ref":"not a ref"}'
 
-stash({ $esc: false, $$esc: null});
-// '{"$esc":false,"$$esc":null,"$$$esc":true}'
-
-unstash(stash({ $esc: false, $$esc: null }));
-// { $esc: false, $$esc: null }
+unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
+// { $ref: "not a ref", $$ref: "also not" }
 ```
 */
 
-describe("Escaping 2", () => {
+describe("Escaping", () => {
   it("should work", () => {
-    expect(stash({ $esc: false })).toBe('{"$esc":false,"$$esc":true}');
-    expect(stash({ $esc: false, $$esc: null })).toBe(
-      '{"$esc":false,"$$esc":null,"$$$esc":true}'
+    expect(stash({ $ref: "not a ref", $$ref: "also not" })).toBe(
+      '{"$$$ref":"also not","$$ref":"not a ref"}'
     );
-    expect(unstash(stash({ $esc: false, $$esc: null }))).toEqual({
-      $esc: false,
-      $$esc: null,
+    expect(unstash(stash({ $ref: "not a ref", $$ref: "also not" }))).toEqual({
+      $ref: "not a ref",
+      $$ref: "also not",
     });
   });
 });
