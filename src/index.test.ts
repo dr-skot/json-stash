@@ -117,7 +117,6 @@ describe("stash", () => {
 
   it("serializes Infinity and NaN", () => {
     const input = [Infinity, -Infinity, NaN];
-    console.log(stash(input));
     const output = unstash(stash(input));
     expect(output).toEqual(input);
   });
@@ -409,8 +408,6 @@ describe("identical objects", () => {
       }
     }
     const input = [new RegExPair(a, b), new RegExPair(a, c)];
-    console.log(input[0].serialize());
-    console.log(input[1].serialize());
     addSerializers({
       type: RegExPair,
       save: (x: RegExPair) => x.serialize(),
@@ -419,10 +416,7 @@ describe("identical objects", () => {
         return existing;
       },
     });
-    console.log("stash(input)", stash(input));
     const output = unstash(stash(input));
-    console.log(output[0].serialize());
-    console.log(output[1].serialize());
     expect(output[0].serialize()).toEqual(input[0].serialize());
     expect(output[1].serialize()).toEqual(input[1].serialize());
   });
