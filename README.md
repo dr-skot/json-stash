@@ -179,7 +179,7 @@ unstash(stash({ $type: "fake" }));
 // { $type: "fake" }
 ```
 
-This cascades in case objects have `$$type` or `$$ref` properties too
+This cascades in case objects have `$$type` or `$$ref` properties too:
 
 ```javascript
 stash({ $ref: "not a ref", $$ref: "also not" });
@@ -222,7 +222,7 @@ unstash(stash(bond)).introduce();
 // 'My name is Bond. James Bond.'
 ```
 
-Note that `addClasses` uses `<class>.name` as the `$type` key by default. 
+A caveat is that `addClasses` uses `<class>.name` as the `$type` key by default. 
 If you have two classes with the same `<class>.name` (because they come from different packages for example),
 give them distinct `$type` keys by passing `[<class>, <key>]` pairs to `addClasses`.
 
@@ -246,11 +246,9 @@ stash(new CIAAgent("Ethan", "Hunt"));
 ### Anything else
 
 For other types, you'll need to provide a custom serializer.
-For example, for an agent class with private properties:
+For example, say your agent class has private properties:
 
 ```javascript
-import { addSerializers, stash, unstash } from 'json-stash';
-
 class Agent {
   constructor(first, last) {
     this.#first = first;
@@ -263,96 +261,124 @@ class Agent {
     return [this.#first, this.#last];
   }
 }
+```
+
+You can support this by providing a serializer with `save` and `load` functions.
+- `save` returns a value that's stashable, and
+- `load` reconstructs the object from the value returned by `save`.
+
+
+```javascript
+import { addSerializers, stash, unstash } from 'json-stash';
 
 const agentSerializer = {
   type: Agent, 
   save: (agent) => agent.serialize(),
   load: (data) => new Agent(...data),
 };
+// add this to stash's serializer registry
 addSerializers(agentSerializer);
 
 const bond = new Agent("James", "Bond");
 
+// JSON.stringify: nope
 const parsed = JSON.parse(JSON.stringify(bond));
 // {}
 parsed.introduce();
 // TypeError: parsed.introduce is not a function
 
+// stash ftw
 const unstashed = unstash(stash(bond));
 // Agent {}
 unstashed.introduce();
 // 'My name is Bond. James Bond.'
 ```
 
-Okay, but what's a serializer?
+See the next section for more about serializers.
+
 
 ## Serializers
 
-Serializers specify how `stash` handles non-vanilla (non-JSON.stringifiable) objects.
+`stash` uses serializers to convert non-vanilla (ie, non-`JSON.stringify`-able) objects
+to the format `{ $type: <key>, data: <data> }`,
+
+A serializer specifies
+- the `type` of object it handles
+- a `test` function to identify objects of that type,
+- a `key` to use for `<key>`,
+- a `save` function to convert the object to `<data>`
+- a `load` function to convert `<data>` back to an object
+
+For example, here is the built-in serializer for `Date`:
 
 ```typescript
-interface Serializer<Type, Data> {
-  // the object type to serialize (e.g. `Date`);
-  type: new (...args: any[]) => Type;
-
-  // unique identifier for this type; default is `type.name`
-  key?: string;
-
-  // detects objects of this type; default is `(obj) => obj instanceof type`
-  test?: (value: any) => boolean;
-
-  // returns data which can be passed to `load` to reconstruct the object
-  save: (value: Type) => Data;
-
-  // reconstructs the object from the data returned by `save`
-  load: (data: Data, existing?: Type) => Type;
-}
-```
-
-When `stash` encounters a non-vanilla object, it searches its serializer list for a serializer that returns
-`true` for `test(object)`. 
-
-If it finds one, it uses that serializer's `key` and `save` properties to serialize the object as `{ $type: key, data: save(object) }`.
-(If no serializer is found, it punts and uses `JSON.stringify`.)
-
-Later, when `unstash` encounters `{ $type: key, data: data }`, it looks for a serializer with a matching `key`.
-
-If it finds one, it calls `load(data)` to deserialize the object.
-(If no serializer is found, it punts and uses `JSON.parse`.)
-
-To illustrate, here are the built-in serializers for `Date` and `RegExp`:
-
-```typescript
-const serializers = [{
+{
   type: Date,
   save: (date: Date) => date.toISOString(),
   load: (iso: string) => new Date(iso)
-}, {
-  type: RegExp,
-  save: (regex: RegExp) => [regex.source, regex.flags],
-  load: ([source, flags]: [string, string]) => new RegExp(source, flags)
-}];
+}
 ```
 
-### `key` and `test`
+Note that the `key` and `test` properties are optional, because they have sensible defaults:
+- `key: type.name`
+- `test: (obj) => obj instanceof type`. 
 
-The `key` and `test` properties are optional because they have sensible defaults. The default `key` is `type.name`, and the default `test` is `(obj) => obj instanceof type`. This is usually what you want,
-but there are exceptions. For example, here's the built-in serializer for `BigInt`:
+This is usually what you want, but there are exceptions. 
+Sometimes `type` is not a class. Here's the built-in serializer for `BigInt`, for example:
 
 ```typescript
-const serializers = [{
+{
   type: typeof BigInt(0),
   key: "bigint",
   test: (x: any) => typeof x === "bigint",
   save: (x: bigint) => x.toString(),
-  load: (str) => BigInt(str),
-}];
+  load: (str: string) => BigInt(str),
+}
 ```
 
-Also if you have multiple classes with the same `type.name` (because they come from different packages for example),
-you'll want to give their serializers different `key`s so there's no conflict.
+Also, if you have two classes with the same `<class>.name` (because they come from different packages for example),
+you'll need to give them distinct `key`s to avoid conflicts.
 
-Speaking of conflict, if two serializers return `test(obj) === true` (on `stash`) or have the same `key` (on `unstash`), which one wins?
+### Nested objects
+
+For objects like `Date` and `BigInt` that don't contain any externally accessible objects, 
+deserialization is straightforward, and a single-parameter `load` function is all you need.
+
+For objects that might contain externally accessible objects, like `Map` or `Set`,
+a two-parameter `load` function is needed, because deserialization might involve multiple passes
+to resolve circular and duplicate references. In this case, `load` will be called more than once, and 
+repeat calls will pass an existing object as a second parameter which must be mutated in place.
+
+```typescript
+function load<Type, Data>(data: <Data>, existing?: <Type>): <Type>
+```
+
+On the first call,
+- `data` may contain unresolved object placeholders of the form `{ $ref: "$.path.to.object" }`
+- `existing` will be undefined, and `load` should return a new object
+
+On subsequent calls,
+- `data` will have its placeholders resolved
+- `existing` will contain the object returned by the first call, which `load` should mutate in place, 
+populating it with the new `data`
+
+For example, here's the built-in serializer for `Map`:
+
+```typescript
+{
+  type: Map,
+  save: (map: Map<unknown, unknown>) => [...map],
+  load: (data: [unknown, unknown][], map = new Map()) => {
+    map.clear();
+    for (const [k, v] of data) map.set(k, v);
+    return map;
+  }
+}
+```
+
+### `key` and `test` conflicts
+
+If two serializers return `test(obj) === true` (on `stash`) or have the same `key` (on `unstash`), which one wins?
 Answer: They're checked in this order:
 
 1. serializers passed directly to `stash` or `unstash`
@@ -360,43 +386,6 @@ Answer: They're checked in this order:
 3. built-in serializers
 
 This allows newly-added serializers to override old ones.
-
-### Nested objects
-
-A single-argument `load` function works fine if your data doesn't reference any external objects.
-If it does, you'll need a two-parameter function, because `load` might be called twice, 
-in order to resolve circular or duplicate references, and the second call 
-will pass an `existing` parameter which `load` should mutate in place:
-
-On the first call,
-- `data` may contain unresolved object placeholders of the form `{ $ref: "$.path.to.object" }`
-- `existing` will be undefined, and `load` should return a new object
-
-If there were unresolved placeholders the first time, `load` will be called a second time:
-- `data` will have all its placeholders resolved
-- `existing` will contain the object returned by the first call, which `load` should repopulate with the new data
-
-To illustrate, here are the built-in serializers for `Map` and `Set`:
-
-```typescript
-const serializers = [{
-  type: Map,
-  save: (map: Map<unknown, unknown>) => [...map],
-  load: (data: [unknown, unknown][], map = new Map()) => {
-    map.clear();
-    for (const [k, v] of data) map.set(k, v);
-    return map;
-  },
-}, {
-  type: Set,
-  save: (set: Set<unknown>) => [...set],
-  load: (data: unknown[], set = new Set()) => {
-    set.clear();
-    for (const item of data) set.add(item);
-    return set;
-  },
-}];
-```
 
 
 ## Todo

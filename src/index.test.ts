@@ -420,4 +420,28 @@ describe("identical objects", () => {
     expect(output[0].serialize()).toEqual(input[0].serialize());
     expect(output[1].serialize()).toEqual(input[1].serialize());
   });
+
+  it("can handle an object with a duplicate object that contains an object that needs to be escaped", () => {
+    const needsToBeEscaped = { $type: "blah" };
+    const input = { a: needsToBeEscaped, b: needsToBeEscaped };
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output.a).toBe(output.b);
+  });
+
+  it("can handle nested non-vanilla objects with duplicate objects that need to be escaped", () => {
+    const needsToBeEscaped = { $type: "blah" };
+    const nested = new Map([
+      ["a", needsToBeEscaped],
+      ["b", needsToBeEscaped],
+    ]);
+    const input = new Map([
+      ["c", nested],
+      ["d", nested],
+    ]);
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output.get("c")).toBe(output.get("d"));
+    expect(output.get("c").get("a")).toBe(output.get("c").get("b"));
+  });
 });
