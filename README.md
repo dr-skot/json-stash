@@ -159,7 +159,7 @@ See [User-defined types](#user-defined-types) for details.
 
 ## The encoding
 
-The output is what you'd expect from `JSON.stringify`, with these enhancements:
+The output of `stash` is what you'd expect from `JSON.stringify`, with these enhancements:
 
 Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
 
@@ -195,7 +195,7 @@ unstash(stash({ $type: "fake" }));
 // { $type: "fake" }
 ```
 
-This cascades in case objects have `$$type` or `$$ref` properties too:
+This cascades in case objects also have `$$type` or `$$ref` properties:
 
 ```javascript
 stash({ $ref: "not a ref", $$ref: "also not" });
