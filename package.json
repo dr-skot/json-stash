@@ -3,6 +3,7 @@
   "version": "3.0.5",
   "description": "serialize and deserialize javascript objects to json",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "jest"
