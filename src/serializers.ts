@@ -86,7 +86,7 @@ export const DEFAULT_SERIALIZERS = [
 
   {
     type: Set,
-    save: (set) => [...set],
+    save: (set) => Array.from(set),
     load: (data, set = new Set()) => {
       set.clear();
       for (const item of data) set.add(item);
@@ -120,7 +120,7 @@ export const DEFAULT_SERIALIZERS = [
 
   {
     type: ArrayBuffer,
-    save: (buffer) => [...new Uint8Array(buffer)],
+    save: (buffer) => Array.from(new Uint8Array(buffer)),
     load: (data) => new Uint8Array(data).buffer,
   },
 
@@ -138,7 +138,7 @@ export const DEFAULT_SERIALIZERS = [
     BigUint64Array,
   ].map((type) => ({
     type,
-    save: (array: any) => [...array],
+    save: (array: any) => Array.from(array),
     load: (data: any[]) => new type(data),
   })),
 ] as Serializer<any, any>[];
