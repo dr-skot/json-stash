@@ -147,7 +147,7 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-export function publicClassSerializer<T>(type: Type<T>, key = type.name) {
+function publicClassSerializer<T>(type: Type<T>, key = type.name) {
   return {
     key,
     type,
@@ -155,6 +155,39 @@ export function publicClassSerializer<T>(type: Type<T>, key = type.name) {
     load: (data: Partial<T>, obj = new type()) => {
       for (const k in obj) delete obj[k];
       for (const k in data) (obj as any)[k] = data[k];
+      return obj;
+    },
+  };
+}
+
+export interface Stashable<Data = unknown> {
+  __jsonStash_save?: () => Data;
+  __jsonStash_update?: (data: Data) => void;
+}
+export interface StashableClass<
+  Instance extends Stashable<Data>,
+  Data = unknown
+> extends Type<Instance> {
+  __jsonStash_load?: (data: Data) => Instance;
+}
+export function classSerializer<
+  Instance extends Stashable<Data>,
+  Data = unknown
+>(type: StashableClass<Instance, Data>, key = type.name) {
+  return {
+    key,
+    type,
+    save: (obj: Instance): Data =>
+      obj.__jsonStash_save
+        ? obj.__jsonStash_save()
+        : (publicClassSerializer(type).save(obj) as Data),
+    load: (data: Data, obj?: Instance): Instance => {
+      if (obj === undefined) {
+        if (type.__jsonStash_load) return type.__jsonStash_load(data);
+        return publicClassSerializer(type).load(data as Partial<Instance>);
+      }
+      if (obj.__jsonStash_update) obj.__jsonStash_update(data);
+      else publicClassSerializer(type).load(data as Partial<Instance>, obj);
       return obj;
     },
   };

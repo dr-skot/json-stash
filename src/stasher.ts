@@ -1,11 +1,15 @@
 import { stash, unstash } from "./stash";
 import {
   DEFAULT_SERIALIZERS,
-  publicClassSerializer,
   getKey,
   type Serializer,
+  classSerializer,
 } from "./serializers";
 import { Type } from "./utils";
+
+// TODO get rid of anys
+
+export type Stasher = ReturnType<typeof getStasher>;
 
 // a stasher can `stash` and `unstash` objects, using the default serializers
 // plus any additional serializers added to with `addSerializers`
@@ -36,12 +40,10 @@ export function getStasher() {
     },
 
     // classes can be passed in as a class or a tuple of [class, key]
-    addClasses(...classes: (Type<unknown> | [Type<unknown>, string])[]) {
+    addClasses(...classes: (Type<any> | [Type<any>, string])[]) {
       methods.addSerializers(
         ...classes.map((c) =>
-          Array.isArray(c)
-            ? publicClassSerializer(...c)
-            : publicClassSerializer(c)
+          Array.isArray(c) ? classSerializer(...c) : classSerializer(c)
         )
       );
     },
