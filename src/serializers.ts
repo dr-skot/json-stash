@@ -147,7 +147,7 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-function publicClassSerializer<T>(type: Type<T>, key = type.name) {
+function publicClassSerializer<T>(type: Type<T>, key: string) {
   return {
     key,
     type,
@@ -174,20 +174,39 @@ export function classSerializer<
   Instance extends Stashable<Data>,
   Data = unknown
 >(type: StashableClass<Instance, Data>, key = type.name) {
+  return type.prototype.__jsonStash_save
+    ? privateClassSerializer(type, key)
+    : publicClassSerializer(type, key);
+}
+
+// privateClassSerializer
+// requires __jsonStash_save
+// if __jsonStash_load, use it
+// else use new type(...data)
+// if load is called with existing object, call __jsonStash_update
+// if no __jsonStash_update, leave object unchanged and warn or throw
+function privateClassSerializer<
+  Instance extends Stashable<Data>,
+  Data = unknown
+>(type: StashableClass<Instance, Data>, key: string) {
+  if (!type.prototype.__jsonStash_save) {
+    throw new Error("privateClassSerializer requires __jsonStash_save method");
+  }
   return {
     key,
     type,
-    save: (obj: Instance): Data =>
-      obj.__jsonStash_save
-        ? obj.__jsonStash_save()
-        : (publicClassSerializer(type).save(obj) as Data),
+    save: (obj: Instance) => obj.__jsonStash_save!(),
     load: (data: Data, obj?: Instance): Instance => {
       if (obj === undefined) {
-        if (type.__jsonStash_load) return type.__jsonStash_load(data);
-        return publicClassSerializer(type).load(data as Partial<Instance>);
+        return type.__jsonStash_load?.(data) || new type(...(data as any));
       }
-      if (obj.__jsonStash_update) obj.__jsonStash_update(data);
-      else publicClassSerializer(type).load(data as Partial<Instance>, obj);
+      if (obj.__jsonStash_update) {
+        obj.__jsonStash_update(data);
+        return obj;
+      }
+      console.warn(
+        `no __jsonStash_update method found for ${type.name}; returning object unchanged`
+      );
       return obj;
     },
   };

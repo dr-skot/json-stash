@@ -31,6 +31,7 @@ describe("the class serializer", function () {
     const serializer = classSerializer(Person as any);
     const person = new Person("Madeline", 101);
     const saved = serializer.save(person as any);
+    // @ts-ignore
     const loaded = serializer.load(saved);
     expect(saved).toEqual({
       name: "Madeline",
@@ -56,8 +57,12 @@ describe("the class serializer", function () {
     const person = new Person("Madeline", 101);
     const saved = serializer.save(person as any);
     expect(saved).toEqual(["Madeline", 101]);
+    // @ts-ignore
+    const loaded = serializer.load(saved);
+    expect(loaded).toBeInstanceOf(Person);
+    expect(loaded.__jsonStash_save!()).toEqual(["Madeline", 101]);
   });
-  it("should deserialize an object with private properties and a __jsonStash_load method", function () {
+  it("should deserialize an object with nonstandard save and load methods", function () {
     class Person {
       #name: string;
       #age: number;
@@ -65,8 +70,12 @@ describe("the class serializer", function () {
         this.#name = name;
         this.#age = age;
       }
-      static __jsonStash_load([name, age]: [string, number]) {
-        return new Person(name, age);
+      __jsonStash_save() {
+        return [this.#name, this.#age].join("|");
+      }
+      static __jsonStash_load(data: string) {
+        const [name, age] = data.split("|");
+        return new Person(name, parseFloat(age));
       }
       getProperties() {
         return { name: this.#name, age: this.#age };
@@ -74,7 +83,10 @@ describe("the class serializer", function () {
     }
 
     const serializer = classSerializer(Person as any);
-    const loaded = serializer.load(["Madeline", 101]) as Person;
+    const person = new Person("Madeline", 101);
+    const saved = serializer.save(person as any);
+    // @ts-ignore
+    const loaded = serializer.load(saved) as Person;
     expect(loaded).toBeInstanceOf(Person);
     expect(loaded.getProperties()).toEqual({
       name: "Madeline",
@@ -96,6 +108,9 @@ describe("the class serializer", function () {
       getLists() {
         return [this.#first, this.#second];
       }
+      __jsonStash_save() {
+        return [this.#first, this.#second];
+      }
       static __jsonStash_load([first, second]: [number[], number[]]) {
         return new Lists(first, second);
       }
@@ -107,10 +122,12 @@ describe("the class serializer", function () {
     const serializer = classSerializer(Lists as any);
     const list = [1, 2, 3];
     // emulate first round of deserialization with duplicate reference
+    // @ts-ignore
     const loaded = serializer.load([[1, 2, 3], { $ref: "$.0" }]) as Lists;
     const loadedLists = loaded.getLists();
     expect(loadedLists[0]).not.toBe(loadedLists[1]);
     // emulate second round with duplicate reference resolved
+    // @ts-ignore
     const updated = serializer.load([list, list], loaded as any) as Lists;
     expect(updated).toBe(loaded);
     const updatedLists = updated.getLists();
