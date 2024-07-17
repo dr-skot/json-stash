@@ -466,6 +466,104 @@ const stashed = stash(something, [unsharedSerializer]);
 const unstashed = unstash(stashed, [unsharedSerializer]);
 ```
 
+### Decorators
+
+The `@stashable` decorator adds a class to the default stasher's class registry:
+
+```typescript
+import { stashable } from 'json-stash';
+@stashable()
+class Agent {}
+```
+
+is equivalent to
+
+```typescript
+import { addClasses } from 'json-stash';
+class Agent {}
+addClasses(Agent);
+```
+
+The default `key` for encoding class objects is `class.name`. 
+You can pass an explicit `key` to avoid conflicts:
+
+```typescript
+// in CIA module
+@stashable({ key: 'CIAAgent' })
+class Agent {}
+
+// in MI5 module
+@stashable({ key: 'MI5Agent' })
+class Agent {}
+```
+
+This is the same as
+
+```typescript
+// in CIA module
+class Agent {}
+addClasses([Agent, 'CIAAgent']);
+
+// in MI5 module
+class Agent {}
+addClasses([Agent, 'CIAAgent']);
+```
+
+If you don't want to pollute the default stasher, 
+you can specify a stashable group and add it to a specific stasher later:
+
+```typescript
+import { stashable } from 'json-stash';
+
+@stashable({ group: 'corporate' })
+class Employee {}
+
+@stashable({ group: 'corporate' })
+class Department {}
+```
+
+Then later,
+
+```typescript
+import { stashable, getStasher } from 'json-stash';
+const myStasher = getStasher();
+myStasher.addClasses(...stashable.group('corporate'));
+```
+
+For classes that can't be serialized like objects (because they have private properties, or require special processing), 
+you can identify save and load methods using special subdecorators of `@stashable`:
+
+```typescript
+import { stashable } from 'json-stash';
+
+@stashable()
+class Agent {
+    #first: string;
+    #last: string;
+    constructor(first, last) {
+        this.#first = first;
+        this.#last = last;
+    }
+    introduce() {
+        return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
+    }
+    @stashable.save
+    serialize() {
+        return [this.#first, this.#last];
+    }
+    @stashable.load
+    static deserialize([first, last]) {
+        return new Agent(first, last);
+    }
+}
+
+const agent = new Agent("James", "Bond");
+const unstashed = unstash(stash(agent));
+unstashed.introduce();
+// 'My name is Bond. James Bond.'
+```
+
+The `@stashable.load` method should be static and return a new object using the data returned by the `@stashable.save` method.
 
 ## Todo
 
