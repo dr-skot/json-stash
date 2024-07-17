@@ -1,11 +1,5 @@
-import {
-  hasOwnProperty,
-  hasSymbolKeys,
-  isPlainObject,
-  isVanilla,
-} from "./utils";
-import { publicClassSerializer, getKey, type Serializer } from "./serializers";
-import { isEscaped } from "./escape";
+import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
+import { getKey, type Serializer } from "./serializers";
 
 // a stashed object that needs to be deserialized looks like this
 type Deserializable = {
