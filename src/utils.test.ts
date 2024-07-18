@@ -90,13 +90,66 @@ describe("Utils Module Tests", () => {
   });
 
   describe("deepForEach", () => {
-    // TODO: Add tests for deepForEach function
-    test("", () => expect(deepForEach).toBeInstanceOf(Function));
+    it("recurses into arrays", () => {
+      const obj = {
+        key: ["value1", "value2", ["value3", ["value4", "value5"]]],
+      };
+      const fn = jest.fn();
+      deepForEach(fn)(obj);
+      expect(fn).toHaveBeenCalledTimes(9);
+      [
+        obj,
+        ["value1", "value2", ["value3", ["value4", "value5"]]],
+        "value1",
+        "value2",
+        ["value3", ["value4", "value5"]],
+        "value3",
+        ["value4", "value5"],
+        "value4",
+        "value5",
+      ].forEach((node) => {
+        expect(fn).toHaveBeenCalledWith(node);
+      });
+    });
+    it("recurses into objects", () => {
+      const obj = { a: "A", b: { c: "C", e: { f: "F", g: "G" } } };
+      const fn = jest.fn();
+      deepForEach(fn)(obj);
+      expect(fn).toHaveBeenCalledTimes(7);
+      [
+        obj,
+        "A",
+        { c: "C", e: { f: "F", g: "G" } },
+        "C",
+        { f: "F", g: "G" },
+        "F",
+        "G",
+      ].forEach((node) => expect(fn).toHaveBeenCalledWith(node));
+    });
   });
 
   describe("deepMap", () => {
-    // TODO: Add tests for deepMap function
-    test("", () => expect(deepMap).toBeInstanceOf(Function));
+    it("recurses into arrays", () => {
+      const obj = {
+        key: ["A", "B", ["C", ["D", "E"]]],
+      };
+      const fn = jest.fn((v: unknown) => (typeof v === "string" ? v + "!" : v));
+      const result = deepMap(fn)(obj);
+      expect(fn).toHaveBeenCalledTimes(9);
+      expect(result).toEqual({
+        key: ["A!", "B!", ["C!", ["D!", "E!"]]],
+      });
+    });
+    it("recurses into objects", () => {
+      const obj = { a: "A", b: { c: "C", e: { f: "F", g: "G" } } };
+      const fn = jest.fn((v: unknown) => (typeof v === "string" ? v + "!" : v));
+      const result = deepMap(fn)(obj);
+      expect(fn).toHaveBeenCalledTimes(7);
+      expect(result).toEqual({
+        a: "A!",
+        b: { c: "C!", e: { f: "F!", g: "G!" } },
+      });
+    });
   });
 
   describe("hasOwnProperty", () => {

@@ -1,5 +1,7 @@
 // a regular old key-value pair object that isn't an instance of a class other than Object
-export function isPlainObject(value: unknown): value is object {
+export function isPlainObject(
+  value: unknown,
+): value is Record<string | symbol, unknown> {
   return value?.constructor === Object;
 }
 
@@ -18,6 +20,7 @@ export function isVanilla(value: unknown) {
 }
 
 // breadth-first traversal, no protection against circular references
+// NOTE: ignores symbol keys; not an issue for json-stash because symbol-keyed objects are specially encoded
 export function deepForEach(fn: (v: unknown) => void) {
   function recurse(node: unknown): void {
     fn(node);
@@ -31,6 +34,7 @@ export function deepForEach(fn: (v: unknown) => void) {
 // returns a copy, unless inPlace is true
 // depth-first traversal, unless depthFirst is false
 // avoids circular references, unless avoidCircular is false
+// NOTE: ignores symbol keys; not an issue for json-stash because symbol-keyed objects are not vanilla
 export function deepMap(
   fn: (v: unknown, path: string) => unknown,
   opts = { inPlace: true, depthFirst: true, avoidCircular: true },
@@ -54,8 +58,6 @@ export function deepMap(
       const obj = opts.inPlace ? node : { ...node };
       // TODO in ignores symbol keys -- test symbol keys and make this work properly
       for (const k in obj) {
-        // @ts-ignore - ts, man, I just don't get you sometimes
-        //    `obj[k]` isn't allowed inside `for (k in obj)`??
         obj[k] = recurse(obj[k], appendPath(path, k));
       }
       node = obj;
