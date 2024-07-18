@@ -52,6 +52,7 @@ export function deepMap(
     }
     if (isPlainObject(node)) {
       const obj = opts.inPlace ? node : { ...node };
+      // TODO in ignores symbol keys -- test symbol keys and make this work properly
       for (const k in obj) {
         // @ts-ignore - ts, man, I just don't get you sometimes
         //    `obj[k]` isn't allowed inside `for (k in obj)`??
