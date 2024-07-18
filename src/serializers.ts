@@ -1,5 +1,7 @@
 import { Class, getOwnKeys, hasSymbolKeys, isPlainObject } from "./utils";
 
+// TODO properly type this; remove all "any"s
+
 export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
   // but can also be a primitive type (e.g. `symbol`, `bigint`)
@@ -154,7 +156,10 @@ export interface ClassSerializerOpts<Type, Data = any> {
   update?: string | ((obj: Type, data: Data) => void);
 }
 
-export function classSerializer<Instance, Data = unknown>(
+export function classSerializer<
+  Instance extends Record<string, any>,
+  Data = unknown,
+>(
   type: Class<Instance>,
   keyOrOpts?: string | ClassSerializerOpts<Instance, Data>,
 ) {
@@ -163,29 +168,27 @@ export function classSerializer<Instance, Data = unknown>(
     typeof keyOrOpts === "string" ? keyOrOpts : opts?.key || type.name;
 
   return {
-    key: opts?.key || type.name,
+    key,
     type,
     save: (obj: Instance): Data => {
       if (!opts) return { ...obj } as unknown as Data;
       if (typeof opts.save === "function") return opts.save(obj);
       // TODO make sure obj[opts.save] is a function
-      // @ts-ignore
       return obj[opts.save]?.();
     },
     load: (data: Data, obj?: Instance): Instance => {
       if (!obj) {
         if (!opts) return setObj(new type(), data);
-        // @ts-ignore
-        if (!opts.load) return new type(...data);
+        // TODO make sure data is an array
+        if (!opts.load) return new type(...(data as unknown[]));
         if (typeof opts.load === "function") return opts.load(data);
-        // @ts-ignore
-        return type[opts.load](data);
+        // TODO make sure obj[opts.save] is a function
+        return (type as any)[opts.load](data);
       }
       if (!opts) return setObj(obj, data);
       if (!opts.update) throw noUpdateMethodError(key);
       if (typeof opts.update === "function") opts.update(obj, data);
       // TODO make sure obj[opts.update] is a function
-      // @ts-ignore
       else obj[opts.update](data);
       return obj;
     },
