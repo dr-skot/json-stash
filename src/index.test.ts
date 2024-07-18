@@ -58,6 +58,28 @@ describe("stash", () => {
     expect(output2.b[2]).toBe(output2.b[2].self);
   });
 
+  it("serializes objects with symbol keys", () => {
+    const input = { [Symbol.for("a")]: 1, [Symbol.for("b")]: 2 };
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+  });
+
+  it("serializes nested objects with symbol keys", () => {
+    const nested = { [Symbol.for("a")]: 1, [Symbol.for("b")]: 2 };
+    const input = { [Symbol.for("c")]: nested, [Symbol.for("d")]: nested };
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output[Symbol.for("c")]).toBe(output[Symbol.for("d")]);
+  });
+
+  it("serializes circular objects with symbol keys", () => {
+    const input: Record<symbol, any> = { [Symbol.for("a")]: 1 };
+    input[Symbol.for("b")] = input;
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output[Symbol.for("b")]).toBe(output);
+  });
+
   it("serializes Date objects", () => {
     const input = new Date();
     const output = unstash(stash(input));
@@ -367,7 +389,7 @@ describe("stashers", () => {
     });
     const d = new Date("2020-01-01");
     expect(stasher1.stash(d)).toBe(
-      '{"$type":"Date","data":"2020-01-01T00:00:00.000Z"}'
+      '{"$type":"Date","data":"2020-01-01T00:00:00.000Z"}',
     );
     expect(stasher2.stash(d)).toBe('{"$type":"Date","data":"not supported"}');
   });
