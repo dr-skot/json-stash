@@ -1,4 +1,4 @@
-import { getOwnKeys, hasSymbolKeys, isPlainObject, Type } from "./utils";
+import { Class, getOwnKeys, hasSymbolKeys, isPlainObject } from "./utils";
 
 export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
@@ -109,13 +109,13 @@ export const DEFAULT_SERIALIZERS = [
         [Infinity]: "Infinity",
         [-Infinity]: "-Infinity",
         [NaN]: "NaN",
-      }[x]),
+      })[x],
     load: (x: string) =>
       ({
         Infinity: Infinity,
         "-Infinity": -Infinity,
         NaN: NaN,
-      }[x]),
+      })[x],
   },
 
   {
@@ -147,67 +147,61 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
-function publicClassSerializer<T>(type: Type<T>, key: string) {
+export interface ClassSerializerOpts<Type, Data = any> {
+  key?: string;
+  save: string | ((obj: Type) => Data);
+  load?: string | ((data: Data) => Type);
+  update?: string | ((obj: Type, data: Data) => void);
+}
+
+export function classSerializer<Instance, Data = unknown>(
+  type: Class<Instance>,
+  keyOrOpts?: string | ClassSerializerOpts<Instance, Data>,
+) {
+  const opts = typeof keyOrOpts === "string" ? undefined : keyOrOpts;
+  const key =
+    typeof keyOrOpts === "string" ? keyOrOpts : opts?.key || type.name;
+
   return {
-    key,
+    key: opts?.key || type.name,
     type,
-    save: (obj: T): Partial<T> => ({ ...obj }),
-    load: (data: Partial<T>, obj = new type()) => {
-      for (const k in obj) delete obj[k];
-      for (const k in data) (obj as any)[k] = data[k];
-      return obj;
+    save: (obj: Instance): Data => {
+      if (!opts) return { ...obj } as unknown as Data;
+      if (typeof opts.save === "function") return opts.save(obj);
+      // TODO make sure obj[opts.save] is a function
+      // @ts-ignore
+      return obj[opts.save]?.();
     },
-  };
-}
-
-export interface Stashable<Data = unknown> {
-  __jsonStash_save?: () => Data;
-  __jsonStash_update?: (data: Data) => void;
-}
-export interface StashableClass<
-  Instance extends Stashable<Data>,
-  Data = unknown
-> extends Type<Instance> {
-  __jsonStash_load?: (data: Data) => Instance;
-}
-export function classSerializer<
-  Instance extends Stashable<Data>,
-  Data = unknown
->(type: StashableClass<Instance, Data>, key = type.name) {
-  return type.prototype.__jsonStash_save
-    ? privateClassSerializer(type, key)
-    : publicClassSerializer(type, key);
-}
-
-// privateClassSerializer
-// requires __jsonStash_save
-// if __jsonStash_load, use it
-// else use new type(...data)
-// if load is called with existing object, call __jsonStash_update
-// if no __jsonStash_update, leave object unchanged and warn or throw
-function privateClassSerializer<
-  Instance extends Stashable<Data>,
-  Data = unknown
->(type: StashableClass<Instance, Data>, key: string) {
-  if (!type.prototype.__jsonStash_save) {
-    throw new Error("privateClassSerializer requires __jsonStash_save method");
-  }
-  return {
-    key,
-    type,
-    save: (obj: Instance) => obj.__jsonStash_save!(),
     load: (data: Data, obj?: Instance): Instance => {
-      if (obj === undefined) {
-        return type.__jsonStash_load?.(data) || new type(...(data as any));
+      if (!obj) {
+        if (!opts) return setObj(new type(), data);
+        // @ts-ignore
+        if (!opts.load) return new type(...data);
+        if (typeof opts.load === "function") return opts.load(data);
+        // @ts-ignore
+        return type[opts.load](data);
       }
-      if (obj.__jsonStash_update) {
-        obj.__jsonStash_update(data);
-        return obj;
-      }
-      console.warn(
-        `no __jsonStash_update method found for ${type.name}; returning object unchanged`
-      );
+      if (!opts) return setObj(obj, data);
+      if (!opts.update) throw noUpdateMethodError(key);
+      if (typeof opts.update === "function") opts.update(obj, data);
+      // TODO make sure obj[opts.update] is a function
+      // @ts-ignore
+      else obj[opts.update](data);
       return obj;
     },
   };
+}
+
+function setObj(obj: any, data: any) {
+  for (const k in obj) delete obj[k];
+  for (const k in data) obj[k] = data[k];
+  return obj;
+}
+
+// TODO more helpful error message
+// TODO should this be a subclass of Error?
+function noUpdateMethodError(key: string) {
+  return new Error(
+    `Second pass required while deserializing but no update method found for ${key}`,
+  );
 }

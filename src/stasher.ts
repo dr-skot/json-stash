@@ -5,7 +5,7 @@ import {
   type Serializer,
   classSerializer,
 } from "./serializers";
-import { Type } from "./utils";
+import { Class } from "./utils";
 
 // TODO get rid of anys
 
@@ -40,11 +40,11 @@ export function getStasher() {
     },
 
     // classes can be passed in as a class or a tuple of [class, key]
-    addClasses(...classes: (Type<any> | [Type<any>, string])[]) {
+    addClasses(...classes: (Class | [Class, string])[]) {
       methods.addSerializers(
         ...classes.map((c) =>
-          Array.isArray(c) ? classSerializer(...c) : classSerializer(c)
-        )
+          Array.isArray(c) ? classSerializer(...c) : classSerializer(c),
+        ),
       );
     },
 

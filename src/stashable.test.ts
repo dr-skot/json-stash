@@ -79,6 +79,9 @@ describe("CountingGuy", () => {
     const test = new CountingGuy("Bob", [4, 5, 6]);
     expect(test.sayHello()).toBe("Hello, my name is Bob");
     expect(test.count()).toBe("4, 5, 6");
+    expect((test as any).__jsonStash_save()).toEqual(["Bob", [4, 5, 6]]);
+    // @ts-ignore
+    expect(test.serialize.__jsonStash_save).toBe(true);
     const unstashed = unstash(stash(test));
     expect(unstashed.sayHello()).toBe("Hello, my name is Bob");
     expect(unstashed.count()).toBe("4, 5, 6");

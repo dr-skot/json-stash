@@ -33,7 +33,7 @@ export function deepForEach(fn: (v: unknown) => void) {
 // avoids circular references, unless avoidCircular is false
 export function deepMap(
   fn: (v: unknown, path: string) => unknown,
-  opts = { inPlace: true, depthFirst: true, avoidCircular: true }
+  opts = { inPlace: true, depthFirst: true, avoidCircular: true },
 ) {
   const seen = new WeakSet();
   function recurse(node: unknown, path: string): unknown {
@@ -74,8 +74,8 @@ function appendPath(path: string, key: string | number) {
   return path ? `${path}.${key}` : `${key}`;
 }
 
-export interface Type<T> extends Function {
-  new (...args: any[]): T;
+export interface Class<Type = any, Args extends unknown[] = any[]> {
+  new (...args: Args): Type;
 }
 
 export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {
