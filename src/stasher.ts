@@ -7,10 +7,6 @@ import {
 } from "./serializers";
 import { Class } from "./utils";
 
-// TODO get rid of anys
-
-export type Stasher = ReturnType<typeof getStasher>;
-
 // a stasher can `stash` and `unstash` objects, using the default serializers
 // plus any additional serializers added to with `addSerializers`
 export function getStasher() {

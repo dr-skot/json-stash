@@ -16,7 +16,11 @@ class ScopedClass {
   constructor(public name: string) {}
 }
 
-@stashable()
+@stashable({
+  save: "serialize",
+  load: "deserialize",
+  update: "update",
+})
 class CountingGuy {
   #name: string = "";
   #list: number[] = [];
@@ -36,20 +40,17 @@ class CountingGuy {
     return this.#list;
   }
 
-  @stashable.save
   serialize() {
     return [this.#name, this.#list];
   }
 
-  @stashable.update
+  static deserialize([name, list]: [string, number[]]) {
+    return new CountingGuy(name, list);
+  }
+
   update([name, list]: [string, number[]]) {
     this.#name = name;
     this.#list = list;
-  }
-
-  @stashable.load
-  static deserialize([name, list]: [string, number[]]) {
-    return new CountingGuy(name, list);
   }
 }
 
@@ -79,9 +80,6 @@ describe("CountingGuy", () => {
     const test = new CountingGuy("Bob", [4, 5, 6]);
     expect(test.sayHello()).toBe("Hello, my name is Bob");
     expect(test.count()).toBe("4, 5, 6");
-    expect((test as any).__jsonStash_save()).toEqual(["Bob", [4, 5, 6]]);
-    // @ts-ignore
-    expect(test.serialize.__jsonStash_save).toBe(true);
     const unstashed = unstash(stash(test));
     expect(unstashed.sayHello()).toBe("Hello, my name is Bob");
     expect(unstashed.count()).toBe("4, 5, 6");
@@ -104,7 +102,7 @@ describe("stashable group", () => {
   });
   it("can be added to a stasher", () => {
     const stasher = getStasher();
-    stasher.addClasses(...stashable.group("Scoped"));
+    stasher.addClasses(...(stashable as any).group("Scoped"));
     const unstashed = stasher.unstash(stasher.stash(new ScopedClass("Alice")));
     expect(unstashed instanceof ScopedClass).toBe(true);
   });

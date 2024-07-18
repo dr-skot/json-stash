@@ -1,50 +1,37 @@
 import { addSerializers } from "./index";
-import { classSerializer } from "./serializers";
+import { classSerializer, ClassSerializerOpts } from "./serializers";
 import { Class } from "./utils";
 
 // TODO properly type this; remove all "any"s
 
-type StashableClassSpec = Class | [Class, string];
+type StashableClassSpec = Class | [Class, string | ClassSerializerOpts<any>];
 
 const groups: Record<string, StashableClassSpec[]> = {};
 
-interface StashableOptions {
-  key?: string;
+interface StashableOptions extends Partial<ClassSerializerOpts<any>> {
   group?: string;
+}
+
+function getKeyOrOpts(opts: StashableOptions) {
+  if (!opts.save) return opts.key;
+  return {
+    key: opts.key,
+    save: opts.save,
+    load: opts.load,
+    update: opts.update,
+  };
 }
 
 export function stashable(opts: StashableOptions = {}) {
   return function (target: any) {
     if (opts.group) {
       const group = groups[opts.group] || [];
-      target = opts.key ? [target, opts.key] : target;
+      target = [target, getKeyOrOpts(opts)];
       groups[opts.group] = [...group, target];
     } else {
-      addSerializers(classSerializer(target, opts.key));
+      addSerializers(classSerializer(target, getKeyOrOpts(opts)));
     }
   };
 }
-stashable.save = (target: any, key: string | { name: string }) => {
-  console.log("stashable.save key", key);
-  console.log("stashable.save target", target);
-  console.log("stashable.save target has key?", target.hasOwnProperty(key));
-  console.log("stashable.save this", this);
-  const name = typeof key === "string" ? key : key.name;
-  const method = typeof key === "string" ? target[key] : target;
-  console.log("stashable.save method", method);
-  method.__jsonStash_save = true;
-  target.__jsonStash_save = target[name];
-};
-stashable.load = (target: any, key: string | { name: string }) => {
-  console.log("stashable.load key", key);
-  const name = typeof key === "string" ? key : key.name;
-  target.__jsonStash_load = target[name];
-};
-
-stashable.update = (target: any, key: string | { name: string }) => {
-  console.log("stashable.update key", key);
-  const name = typeof key === "string" ? key : key.name;
-  target.__jsonStash_update = target[name];
-};
 
 stashable.group = (groupName: string) => groups[groupName] || [];
