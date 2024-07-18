@@ -6,7 +6,6 @@
         "declaration": true,
         "outDir": "./dist",
         "esModuleInterop": true,
-        "experimentalDecorators": true
     },
     "files": [
         "src/index.ts"
