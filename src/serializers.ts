@@ -149,9 +149,11 @@ export function getKey(serializer: Serializer<any, any>) {
   return serializer.key || serializer.type.name;
 }
 
+// TODO if save is not defined, no load or update will be ignored
+//    typescript could enforce this but it's not worth the complexity
 export interface ClassSerializerOpts<Type, Data = any> {
   key?: string;
-  save: string | ((obj: Type) => Data);
+  save?: string | ((obj: Type) => Data);
   load?: string | ((data: Data) => Type);
   update?: string | ((obj: Type, data: Data) => void);
 }
@@ -161,35 +163,34 @@ export function classSerializer<
   Data = unknown,
 >(
   type: Class<Instance>,
-  keyOrOpts?: string | ClassSerializerOpts<Instance, Data>,
+  keyOrOpts: string | ClassSerializerOpts<Instance, Data> = {},
 ) {
-  const opts = typeof keyOrOpts === "string" ? undefined : keyOrOpts;
-  const key =
-    typeof keyOrOpts === "string" ? keyOrOpts : opts?.key || type.name;
+  const opts = typeof keyOrOpts === "string" ? { key: keyOrOpts } : keyOrOpts;
+  const { key = type.name, save, load, update } = opts;
 
   return {
     key,
     type,
     save: (obj: Instance): Data => {
-      if (!opts) return { ...obj } as unknown as Data;
-      if (typeof opts.save === "function") return opts.save(obj);
+      if (!save) return { ...obj } as unknown as Data;
+      if (typeof save === "function") return save(obj);
       // TODO make sure obj[opts.save] is a function
-      return obj[opts.save]?.();
+      return obj[save]?.();
     },
     load: (data: Data, obj?: Instance): Instance => {
       if (!obj) {
-        if (!opts) return setObj(new type(), data);
+        if (!save) return setObj(new type(), data);
         // TODO make sure data is an array
-        if (!opts.load) return new type(...(data as unknown[]));
-        if (typeof opts.load === "function") return opts.load(data);
-        // TODO make sure obj[opts.save] is a function
-        return (type as any)[opts.load](data);
+        if (!load) return new type(...(data as unknown[]));
+        if (typeof load === "function") return load(data);
+        // TODO make sure obj[load] is a function
+        return (type as any)[load](data);
       }
-      if (!opts) return setObj(obj, data);
-      if (!opts.update) throw noUpdateMethodError(key);
-      if (typeof opts.update === "function") opts.update(obj, data);
+      if (!save) return setObj(obj, data);
+      if (!update) throw noUpdateMethodError(key);
+      if (typeof update === "function") update(obj, data);
       // TODO make sure obj[opts.update] is a function
-      else obj[opts.update](data);
+      else obj[update](data);
       return obj;
     },
   };
@@ -205,6 +206,6 @@ function setObj(obj: any, data: any) {
 // TODO should this be a subclass of Error?
 function noUpdateMethodError(key: string) {
   return new Error(
-    `Second pass required while deserializing but no update method found for ${key}`,
+    `json-stash: Second pass required while unstashing but no update method found for ${key}`,
   );
 }

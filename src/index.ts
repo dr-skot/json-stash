@@ -12,3 +12,4 @@ export const addSerializers = stasher.addSerializers;
 export const removeSerializers = stasher.removeSerializers;
 export const clearSerializers = stasher.clearSerializers;
 export const addClasses = stasher.addClasses;
+export const addClass = stasher.addClass;

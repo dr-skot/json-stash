@@ -4,6 +4,7 @@ import {
   getKey,
   type Serializer,
   classSerializer,
+  ClassSerializerOpts,
 } from "./serializers";
 import { Class } from "./utils";
 
@@ -35,11 +36,18 @@ export function getStasher() {
       addedSerializers.splice(0, 0, ...serializers);
     },
 
-    // classes can be passed in as a class or a tuple of [class, key]
-    addClasses(...classes: (Class | [Class, string])[]) {
+    addClass<T extends Instance>(
+      type: Class<T>,
+      keyOrOpts?: string | ClassSerializerOpts<T>,
+    ) {
+      methods.addSerializers(classSerializer(type, keyOrOpts));
+    },
+
+    // classes can be passed in as a class or a tuple of [class, keyOrOpts]
+    addClasses(...classes: AddClassParams[]) {
       methods.addSerializers(
         ...classes.map((c) =>
-          Array.isArray(c) ? classSerializer(...c) : classSerializer(c),
+          Array.isArray(c) ? classSerializer(c[0], c[1]) : classSerializer(c),
         ),
       );
     },
@@ -58,3 +66,8 @@ export function getStasher() {
 
   return methods;
 }
+
+type Instance = Record<string, any>;
+type AddClassParams<T extends Instance = Instance> =
+  | Class<T>
+  | [Class<T>, string | ClassSerializerOpts<T>];
