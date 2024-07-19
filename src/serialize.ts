@@ -60,9 +60,19 @@ export function reload(
 ) {
   // we'll find a matching serializer this time; second pass only happens if the first pass found one
   const serializer = serializers.find((s) => getKey(s) === spec.$type);
+  if (!serializer) {
+    // should we throw?
+    console.warn(`json-stash: no deserializer found for ${spec}`);
+    return;
+  }
+
   const data = spec.data;
+
+  // TODO discontinue load in favor of update
+  //   throw error if no update method found
   // value will be mutated in place
-  serializer?.load(data, value);
+  if (serializer.update) serializer.update(value, data);
+  else serializer.load(data, value);
 }
 
 // TODO save this as test in the serializer

@@ -520,11 +520,8 @@ describe("Other data", () => {
       type: Object,
       test: (obj) => obj.isQueue,
       save: (queue: Queue) => queue.save(),
-      load: (data: any[], existing?: Queue) => {
-        if (!existing) return getQueue(data);
-        existing.set(data);
-        return existing;
-      },
+      load: (data: any[]) => getQueue(data),
+      update: (queue: Queue, data: any[]) => queue.set(data),
     });
 
     // make it circular

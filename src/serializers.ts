@@ -20,6 +20,9 @@ export interface Serializer<Type, Data> {
   // if `existing` is defined, repopulate it with `data`; otherwise return a new object
   // you only need to support the `existing` parameter if `Data` (return value of `save`) can contain objects
   load: (data: Data, existing?: Type) => Type;
+
+  // updates an existing object with new data
+  update?: (object: Type, data: Data) => void;
 }
 
 export const DEFAULT_SERIALIZERS = [
