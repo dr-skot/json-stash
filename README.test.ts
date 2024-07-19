@@ -1,4 +1,11 @@
-import { stash, unstash, addClasses, addSerializers } from "./src";
+import {
+  stash,
+  unstash,
+  addClasses,
+  addSerializers,
+  addClass,
+  clearSerializers,
+} from "./src";
 import { Agent as MI5Agent } from "./test/README.test.mi5";
 import { Agent as CIAAgent } from "./test/README.test.cia";
 
@@ -101,7 +108,7 @@ describe("Circular references", () => {
     egoist.preoccupation = egoist;
 
     expect(() => JSON.stringify(egoist)).toThrow(
-      "Converting circular structure to JSON"
+      "Converting circular structure to JSON",
     );
     expect(stash(egoist)).toEqual('{"preoccupation":{"$ref":"$"}}');
     expect(unstash(stash(egoist))).toEqual(egoist);
@@ -141,10 +148,10 @@ describe("Identical objects", () => {
     const presidents = { 22: grover, 23: ben, 24: grover };
 
     expect(JSON.stringify(presidents)).toEqual(
-      '{"22":{"name":"Cleveland"},"23":{"name":"Harrison"},"24":{"name":"Cleveland"}}'
+      '{"22":{"name":"Cleveland"},"23":{"name":"Harrison"},"24":{"name":"Cleveland"}}',
     );
     expect(stash(presidents)).toEqual(
-      '{"22":{"name":"Cleveland"},"23":{"name":"Harrison"},"24":{"$ref":"$.22"}}'
+      '{"22":{"name":"Cleveland"},"23":{"name":"Harrison"},"24":{"$ref":"$.22"}}',
     );
 
     const unstringified = JSON.parse(JSON.stringify(presidents));
@@ -208,10 +215,10 @@ describe("Built-in types", () => {
     const landing = new Date("1969-07-21T02:56Z");
     expect(JSON.stringify(landing)).toBe('"1969-07-21T02:56:00.000Z"');
     expect(JSON.parse(JSON.stringify(landing))).toBe(
-      "1969-07-21T02:56:00.000Z"
+      "1969-07-21T02:56:00.000Z",
     );
     expect(stash(landing)).toBe(
-      '{"$type":"Date","data":"1969-07-21T02:56:00.000Z"}'
+      '{"$type":"Date","data":"1969-07-21T02:56:00.000Z"}',
     );
     expect(unstash(stash(landing))).toEqual(landing);
 
@@ -222,7 +229,7 @@ describe("Built-in types", () => {
     expect(JSON.stringify(order)).toBe("{}");
     expect(JSON.parse(JSON.stringify(order))).toEqual({});
     expect(stash(order)).toBe(
-      '{"$type":"Map","data":[[1,"Armstrong"],[2,"Aldrin"]]}'
+      '{"$type":"Map","data":[[1,"Armstrong"],[2,"Aldrin"]]}',
     );
     expect(unstash(stash(order))).toEqual(order);
 
@@ -241,13 +248,9 @@ describe("Built-in types", () => {
 });
 
 /*
-Supported out of the box are `Date`, `Error`, `RegExp`,
-`Map`, `Set`, all the `Array`s, `ArrayBuffer`
-`BigInt`, `Infinity`, `NaN`, and `Symbol`.
+### Simple public-property classes
 
-### Class instances
-
-For classes with public properties, just add them to the `stash` class registry with `addClasses`.
+For classes with public properties, just add them to `stash`'s registry with `addClass`.
 
 ```javascript
 import { addClasses, stash, unstash } from 'json-stash';
@@ -261,15 +264,17 @@ class Agent {
     return `My name is ${this.last}. ${this.first} ${this.last}.`;
   }
 }
-addClasses(Agent);
+addClass(Agent);
 
 const bond = new Agent("James", "Bond");
 
+// stringify: nope
 JSON.stringify(bond);
 // '{"first":"James","last":"Bond"}'
 JSON.parse(JSON.stringify(bond)).introduce();
 // TypeError: JSON.parse(...).introduce is not a function
 
+// stash ftw
 stash(bond);
 // '{"$type":"Agent","data":{"first":"James","last":"Bond"}}'
 unstash(stash(bond)).introduce();
@@ -277,40 +282,41 @@ unstash(stash(bond)).introduce();
 ```
 */
 
-describe("Class instances", () => {
+describe("Simple public property classes", () => {
   it("should work", () => {
     class Agent {
-      first: string;
-      last: string;
-      constructor(first: string, last: string) {
-        this.first = first;
-        this.last = last;
-      }
+      constructor(
+        public first: string,
+        public last: string,
+      ) {}
       introduce() {
         return `My name is ${this.last}. ${this.first} ${this.last}.`;
       }
     }
-    addClasses(Agent);
+    addClass(Agent);
 
     const bond = new Agent("James", "Bond");
 
+    // stringify: nope
     expect(JSON.stringify(bond)).toBe('{"first":"James","last":"Bond"}');
     expect(() => JSON.parse(JSON.stringify(bond)).introduce()).toThrow(
-      "JSON.parse(...).introduce is not a function"
+      "JSON.parse(...).introduce is not a function",
     );
+
+    // stash ftw
     expect(stash(bond)).toBe(
-      '{"$type":"Agent","data":{"first":"James","last":"Bond"}}'
+      '{"$type":"Agent","data":{"first":"James","last":"Bond"}}',
     );
     expect(unstash(stash(bond)).introduce()).toBe(
-      "My name is Bond. James Bond."
+      "My name is Bond. James Bond.",
     );
   });
 });
 
 /*
-Note that `addClasses` uses the `<class>.name` as the `$type` key by default.
+A caveat is that `addClasses` uses `<class>.name` as the `$type` key by default.
 If you have two classes with the same `<class>.name` (because they come from different packages for example),
-give them distinct `$type` keys by passing `[<class>, <key>]` pairs to `addClasses`.
+give them distinct keys by passing a second parameter to `addClass`.
 
 ```javascript
 import { Agent as MI5Agent } from 'mi5';
@@ -319,9 +325,9 @@ import { Agent as CIAAgent } from 'cia';
 MI5Agent.name === CIAAgent.name
 // true -- both are 'Agent'
 
-// give them distinct keys in `stash`'s class registry
-// by passing [<class>, <key>] pairs
-addClasses([MI5Agent, 'MI5Agent'], [CIAAgent, 'CIAAgent']);
+// give them distinct keys in `stash`'s registry
+addClass(MI5Agent, 'MI5Agent');
+addClass(CIAAgent, 'CIAAgent');
 
 stash(new MI5Agent("James", "Bond"));
 // '{"$type":"MI5Agent","data":{"first":"James","last":"Bond"}}'
@@ -335,14 +341,120 @@ describe("Classes with the same name", () => {
     expect(MI5Agent.name).toBe(CIAAgent.name);
     expect(MI5Agent.name).toBe("Agent");
 
-    addClasses([MI5Agent, "MI5Agent"], [CIAAgent, "CIAAgent"]);
+    addClass(MI5Agent, { key: "MI5Agent" });
+    addClass(CIAAgent, { key: "CIAAgent" });
 
     expect(stash(new MI5Agent("James", "Bond"))).toBe(
-      '{"$type":"MI5Agent","data":{"first":"James","last":"Bond"}}'
+      '{"$type":"MI5Agent","data":{"first":"James","last":"Bond"}}',
     );
     expect(stash(new CIAAgent("Ethan", "Hunt"))).toBe(
-      '{"$type":"CIAAgent","data":{"first":"Ethan","last":"Hunt"}}'
+      '{"$type":"CIAAgent","data":{"first":"Ethan","last":"Hunt"}}',
     );
+  });
+});
+
+describe("Private-field classes", () => {
+  beforeEach(() => clearSerializers());
+  it("should work when save returns constructor args", () => {
+    class Agent {
+      #first: string;
+      #last: string;
+      constructor(first: string, last: string) {
+        this.#first = first;
+        this.#last = last;
+      }
+      introduce() {
+        return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
+      }
+      serialize() {
+        return [this.#first, this.#last];
+      }
+    }
+    addClass(Agent);
+    const bondWRONG = new Agent("James", "Bond");
+    const unstashedWRONG = unstash(stash(bondWRONG));
+    expect(unstashedWRONG.introduce()).toBe(
+      "My name is undefined. undefined undefined.",
+    );
+
+    addClass(Agent, { save: "serialize" });
+
+    const bond = new Agent("James", "Bond");
+    const unstashed = unstash(stash(bond));
+    expect(unstashed instanceof Agent).toBe(true);
+    expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+  });
+  it("should work when load reconstructs the object", () => {
+    class Agent {
+      #first: string;
+      #last: string;
+      constructor(first: string, last: string) {
+        this.#first = first;
+        this.#last = last;
+      }
+      introduce() {
+        return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
+      }
+      serialize() {
+        return { first: this.#first, last: this.#last };
+      }
+    }
+    addClass(Agent, {
+      save: "serialize",
+      load: ({ first, last }) => new Agent(first, last),
+    });
+    const unstashed = unstash(stash(new Agent("James", "Bond")));
+    expect(unstashed instanceof Agent).toBe(true);
+    expect(unstashed.introduce()).toBe("My name is Bond. James Bond.");
+  });
+  it("should work with circular refs if an update method is provided", () => {
+    class BFF {
+      #bff: BFF | undefined;
+      constructor(bff?: BFF) {
+        this.#bff = bff;
+      }
+      getBff() {
+        return this.#bff;
+      }
+      setBff(bff?: BFF) {
+        this.#bff = bff;
+      }
+    }
+    addClass(BFF, {
+      save: "getBff",
+      load: (bff) => new BFF(bff),
+      update: "setBff",
+    });
+
+    const egoist = new BFF();
+    egoist.setBff(egoist);
+
+    const unstashed = unstash(stash(egoist));
+    expect(unstashed.getBff()).toBe(unstashed);
+  });
+  it("should throw with circular refs if no update method is provided", () => {
+    class BFF {
+      #bff: BFF | undefined;
+      constructor(bff?: BFF) {
+        this.#bff = bff;
+      }
+      getBff() {
+        return [this.#bff];
+      }
+      setBff(bff?: BFF) {
+        this.#bff = bff;
+      }
+    }
+    addClass(BFF, {
+      save: "getBff",
+      load: (bff) => new BFF(bff),
+    });
+
+    const egoist = new BFF();
+    egoist.setBff(egoist);
+
+    const stashed = stash(egoist);
+    expect(() => unstash(stashed)).toThrow("no update method");
   });
 });
 
@@ -389,6 +501,48 @@ unstashed.introduce();
 ```
 */
 
+describe("Other data", () => {
+  it("should work", () => {
+    function getQueue(items: any[]) {
+      items = [...items];
+      return {
+        isQueue: true,
+        enqueue: (item: any) => items.unshift(item),
+        dequeue: () => items.pop(),
+        save: () => [...items],
+        set: (newItems: any[]) => (items = newItems),
+      };
+    }
+    type Queue = ReturnType<typeof getQueue>;
+
+    addSerializers({
+      key: "Queue",
+      type: Object,
+      test: (obj) => obj.isQueue,
+      save: (queue: Queue) => queue.save(),
+      load: (data: any[], existing?: Queue) => {
+        if (!existing) return getQueue(data);
+        existing.set(data);
+        return existing;
+      },
+    });
+
+    // make it circular
+    const q = getQueue([]);
+    q.enqueue(q);
+
+    // stringify: nope
+    const parsed = JSON.parse(JSON.stringify(q));
+    expect(parsed).toEqual({ isQueue: true });
+    expect(() => parsed.dequeue()).toThrow("not a function");
+
+    // stash ftw
+    const unstashed = unstash(stash(q));
+    expect(unstashed.isQueue).toBe(true);
+    expect(unstashed.dequeue()).toBe(unstashed);
+  });
+});
+
 describe("Almost anything else", () => {
   it("should work", () => {
     class Agent {
@@ -418,7 +572,7 @@ describe("Almost anything else", () => {
     const parsed = JSON.parse(JSON.stringify(bond));
     expect(parsed).toEqual({});
     expect(() => parsed.introduce()).toThrow(
-      "parsed.introduce is not a function"
+      "parsed.introduce is not a function",
     );
 
     const unstashed = unstash(stash(bond));
@@ -553,7 +707,7 @@ describe("JSON encoding", () => {
     const vipList = [egoist, egoist];
 
     expect(stash(vipList)).toBe(
-      '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]'
+      '[{"preoccupation":{"$ref":"$.0"}},{"$ref":"$.0"}]',
     );
   });
 });
@@ -610,7 +764,7 @@ unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
 describe("Escaping", () => {
   it("should work", () => {
     expect(stash({ $ref: "not a ref", $$ref: "also not" })).toBe(
-      '{"$$$ref":"also not","$$ref":"not a ref"}'
+      '{"$$$ref":"also not","$$ref":"not a ref"}',
     );
     expect(unstash(stash({ $ref: "not a ref", $$ref: "also not" }))).toEqual({
       $ref: "not a ref",

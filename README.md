@@ -22,7 +22,7 @@ npm install json-stash
 ## Usage
 
 ```javascript
-import { stash, unstash } from 'json-stash';
+import { stash, unstash } from "json-stash";
 
 const stashed = stash(anything);
 const unstashed = unstash(stashed);
@@ -37,7 +37,7 @@ expect(unstashed).toEqual(anything);
 Or if you need to play well with others,
   
 ```javascript
-import { getStasher } from 'json-stash';
+import { getStasher } from "json-stash";
 const stasher = getStasher();
 
 const stashed = stasher.stash(anything);
@@ -188,14 +188,14 @@ In order not to choke on input that already contains `$ref` or `$type` propertie
 and `unstash` duly unescapes them.
 
 ```javascript
-stash({ $type: "fake" });
-// '{"$$type":"fake"}'
+stash({ $ref: "not a real ref" });
+// '{"$$ref":"not a ref"}'
 
-unstash(stash({ $type: "fake" }));
-// { $type: "fake" }
+unstash(stash({ $ref: "not a real ref" }));
+// { $ref: "not a ref" }
 ```
 
-This cascades in case objects also have `$$type` or `$$ref` properties:
+The `$`-prepending cascades, in case objects also have `$$type` or `$$ref` properties:
 
 ```javascript
 stash({ $ref: "not a ref", $$ref: "also not" });
@@ -206,14 +206,14 @@ unstash(stash({ $ref: "not a ref", $$ref: "also not" }));
 ```
 
 
-## User-defined types
+## Classes
 
-### Public-property classes
+### Public-field classes
 
-For classes with public properties, just add them to `stash`'s class registry with `addClasses`.
+For classes with public fields, just add them to `stash`'s registry with `addClass`.
 
 ```javascript
-import { addClasses, stash, unstash } from 'json-stash';
+import { addClasses, stash, unstash } from "json-stash";
 
 class Agent {
   constructor(first, last) {
@@ -224,7 +224,7 @@ class Agent {
     return `My name is ${this.last}. ${this.first} ${this.last}.`;
   }
 }
-addClasses(Agent);
+addClass(Agent);
 
 const bond = new Agent("James", "Bond");
 
@@ -241,9 +241,9 @@ unstash(stash(bond)).introduce();
 // 'My name is Bond. James Bond.'
 ```
 
-A caveat is that `addClasses` uses `<class>.name` as the `$type` key by default. 
+A caveat is that `addClass` uses `<class>.name` as the `$type` key by default. 
 If you have two classes with the same `<class>.name` (because they come from different packages for example),
-give them distinct `$type` keys by passing `[<class>, <key>]` pairs to `addClasses`.
+give them distinct keys by passing a second parameter to `addClass`.
 
 ```javascript
 import { Agent as MI5Agent } from 'mi5';
@@ -252,9 +252,9 @@ import { Agent as CIAAgent } from 'cia';
 MI5Agent.name === CIAAgent.name 
 // true -- both are 'Agent'
 
-// give them distinct keys in `stash`'s class registry 
-// by passing [<class>, <key>] pairs
-addClasses([MI5Agent, 'MI5Agent'], [CIAAgent, 'CIAAgent']);
+// so give them distinct `$type` keys in `stash`'s registry 
+addClass(MI5Agent, { key: "MI5Agent" });
+addClass(CIAAgent, { key: "CIAAgent" });
 
 stash(new MI5Agent("James", "Bond"));
 // '{"$type":"MI5Agent","data":{"first":"James","last":"Bond"}}'
@@ -262,10 +262,10 @@ stash(new CIAAgent("Ethan", "Hunt"));
 // '{"$type":"CIAAgent","data":{"first":"Ethan","last":"Hunt"}}'
 ```
 
-### Anything else
+### Private-field classes
 
-For other types, you'll need to provide a custom serializer.
-For example, say your `Agent` class has private properties:
+If your class has private fields, you'll need to provide a `save` function. In the simplest case, `save`
+returns an array of arguments to pass to the class constructor.
 
 ```javascript
 class Agent {
@@ -273,44 +273,257 @@ class Agent {
     this.#first = first;
     this.#last = last;
   }
+  serialize() { 
+      return [this.#first, this.#last] 
+  }
   introduce() {
     return `My name is ${this.#last}. ${this.#first} ${this.#last}.`;
   }
-  serialize() {
-    return [this.#first, this.#last];
-  }
 }
-```
-
-You can support this by providing a serializer with `save` and `load` functions.
-- `save` returns a value that's stashable, and
-- `load` reconstructs the object from the value returned by `save`.
-
-
-```javascript
-import { addSerializers, stash, unstash } from 'json-stash';
-
-const agentSerializer = {
-  type: Agent, 
-  save: (agent) => agent.serialize(),
-  load: (data) => new Agent(...data),
-};
-// add this to stash's serializer registry
-addSerializers(agentSerializer);
+addClass(Agent, { save: "serialize" });
 
 const bond = new Agent("James", "Bond");
-
-// stringify: nope
-const parsed = JSON.parse(JSON.stringify(bond));
-// {}
-parsed.introduce();
-// TypeError: parsed.introduce is not a function
-
-// stash ftw
 const unstashed = unstash(stash(bond));
 // Agent {}
 unstashed.introduce();
 // 'My name is Bond. James Bond.'
+```
+
+`save` can be the name of a method, as above, or a function that takes the object as an argument:
+
+```javascript
+class Agent {
+  constructor(first, last) {
+    this.#first = first;
+    this.#last = last;
+  }
+  getFirst() { return this.#first }
+  getLast() { return this.#last }
+}
+
+addClass(Agent, { save: (agent) => [agent.getFirst(), agent.getLast()] });
+```
+
+If `save` doesn't return constructor arguments, you'll have to
+provide a `load` function that reconstructs the object from the data returned by `save`.
+
+```javascript
+class Agent {
+  constructor(first, last) {
+    this.#first = first;
+    this.#last = last;
+  }
+  serialize() {
+    return { first: this.#first, last: this.#last };
+  }
+}
+
+addClass(Agent, { 
+  save: "serialize", 
+  load: ({ first, last }) => new Agent(first, last) 
+});
+```
+
+`load` can be a function, as above, or the name of a static method:
+
+```javascript
+class Agent {
+  constructor(first, last) {
+    this.#first = first;
+    this.#last = last;
+  }
+  serialize() {
+    return { first: this.#first, last: this.#last };
+  }
+  static deserialize({ first, last }) {
+    return new Agent(first, last);
+  }
+}
+addClass(Agent, { save: "serialize", load: "deserialize" });
+```
+
+If your object can contain other objects, you'll need to provide an `update` method as well, 
+to support circular/duplicate references. 
+When there are duplicate references in the original input, 
+unstashing involves two phases: 
+- phase 1: call `load` with placeholder data for re-referenced objects; 
+- phase 2: resolve placeholders and call `update` with the resolved data.
+
+```javascript
+class BFF {
+  constructor(bff) { this.#bff = bff }
+  getBff() { return this.#bff }
+  setBff(bff) { this.#bff = bff }
+}
+
+addClass(BFF, { 
+  save: "getBff",
+  load: (bff) => new BFF(bff), 
+  update: "setBff"
+});
+
+const egoist = new BFF();
+egoist.setBff(egoist);
+
+const unstashed = unstash(stash(egoist));
+unstashed.getBff() === unstashed;
+// true
+```
+
+`update` can also be a function that takes the object and data as arguments:
+
+```javascript
+addClass(BFF, {
+  save: (person) => [person.getBff()],
+  update: (person, [bff]) => person.setBff(bff),
+})
+```
+
+If duplicate references need to be resolved and no `update` method has been provided, `unstash` will throw an error.
+
+```javascript
+addClass(BFF, { save: (person) => [person.getBff()] });
+
+const egoist = new BFF();
+egoist.setBff(egoist);
+
+const unstashed = unstash(stash(egoist));
+// throws Error: json-stash: Second pass required while unstashing but no update method found for BFF
+```
+
+### Class decorator
+
+For convenience, `json-stash` provides a TypeScript class decorator `@stashable`as an alternative to `addClasses`.
+`@stashable(opts) class X {}` is equivalent to `class X {}; addClasses(X, opts)` 
+(unless you use the `group` option—see [next section](#playing-well-with-others) for details).
+
+```javascript
+import { stashable } from "json-stash";
+
+// for public-field classes no arguments are necessary
+@stashable()
+class Person {
+  constructor(first, last) {
+    this.first = first;
+    this.last = last;
+  }
+}
+
+// provide unique keys to differentiate classes with the same name
+// CIA module
+@stashable({ key: "CIAAgent" })
+class Agent {}
+// MI5 module
+@stashable({ key: "MI5Agent" })
+class Agent {}
+
+// for private field classes, provide a `save` function
+// and, if needed, `load` and `update` functions
+@stashable({
+  save: "getBff",
+  load: (bff) => new BFF(bff),
+  update: "setBff"
+})
+class BFF {
+  constructor(bff) { this.#bff = bff }
+  getBff() { return this.#bff }
+  setBff(bff) { this.#bff = bff }
+}
+```
+
+`@stashable` should work under both of TypeScript’s decorator regimes—the stage 3 decorators introduced in TypeScript 5.0 or the earlier stage 2 decorators using the `--experimentalDecorators` flag.
+
+### Playing well with others
+
+The above examples add classes to the global stasher.
+This might be what you want in a small project, but if you're working on something bigger and need to avoid collisions with other `json-stash` users, 
+you can create your own stasher instance and add classes to that.
+
+```javascript
+import { getStasher } from "json-stash";
+
+class Thing {}
+
+const stasher = getStasher();
+stasher.addClass(Thing);
+const stashed = stasher.stash(new Thing());
+const unstashed = stasher.unstash(stashed);
+```
+
+To accomplish this with the decorator syntax, use `@stashable` to create a group of classes, then add them to a stasher.
+
+```javascript
+import { stashable, getStasher } from "json-stash";
+
+@stashable({ group: "corporate" })
+class Employee {}
+
+@stashable({ group: "corporate" })
+class Department {}
+
+const myStasher = getStasher();
+myStasher.addClasses(...stashable.group("corporate"));
+```
+
+Note that specifying a `group` tells `@stashable` not to add the class to the global stasher. 
+If you want the classes added to the global stasher too, you can add them explicitly:
+
+```javascript
+addClasses(...stashable.group("corporate"));
+```
+
+or double up the decorators:
+
+```javascript
+@stashable()
+@stashable({ group: "corporate" })
+class Employee {}
+```
+
+## Other data
+
+You can stash just about anything using a custom serializer.
+
+```typescript
+import { addSerializers, stash, unstash } from "json-stash";
+
+function getQueue(items: any[]) {
+  items = [...items];
+  return {
+    isQueue: true,
+    enqueue: (item: any) => items.unshift(item),
+    dequeue: () => items.pop(),
+    save: () => [...items],
+    set: (newItems: any[]) => (items = newItems),
+  };
+}
+type Queue = ReturnType<typeof getQueue>;
+
+addSerializers({
+  key: "Queue",
+  type: Object,
+  test: (obj) => obj.isQueue,
+  save: (queue: Queue) => queue.save(),
+  load: (data: any[], existing?: Queue) => {
+    if (!existing) return getQueue(data);
+    existing.set(data);
+    return existing;
+  },
+});
+
+// make it circular
+const q = getQueue([]);
+q.enqueue(q);
+
+// stringify: nope
+const parsed = JSON.parse(JSON.stringify(q));
+parsed.dequeue() === parsed;
+// throws TypeError: parsed.dequeue is not a function
+
+// stash ftw
+const unstashed = unstash(stash(q));
+parsed.dequeue() === unstashed;
+// true
 ```
 
 See the next section for more about serializers.
@@ -414,7 +627,7 @@ you can use `getStasher` to create an independent stasher
 with its own serializer list.
 
 ```javascript
-import { getStasher } from 'json-stash';
+import { getStasher } from "json-stash";
 const stasher = getStasher();
 stasher.addClasses(...someClasses);
 stasher.addSerializers(...someSerializers);
@@ -424,7 +637,7 @@ stasher.stash(something);
 Or, if you prefer the bare function names,
 
 ```javascript
-import { getStasher } from 'json-stash';
+import { getStasher } from "json-stash";
 const { stash, unstash, addClasses, addSerializers } = getStasher();
 ```
 
@@ -471,7 +684,7 @@ const unstashed = unstash(stashed, [unsharedSerializer]);
 The `@stashable` decorator adds a class to the default stasher's class registry:
 
 ```typescript
-import { stashable } from 'json-stash';
+import { stashable } from "json-stash";
 @stashable()
 class Agent {}
 ```
@@ -479,7 +692,7 @@ class Agent {}
 is equivalent to
 
 ```typescript
-import { addClasses } from 'json-stash';
+import { addClasses } from "json-stash";
 class Agent {}
 addClasses(Agent);
 ```
@@ -513,7 +726,7 @@ If you don't want to pollute the default stasher,
 you can specify a stashable group and add it to a specific stasher later:
 
 ```typescript
-import { stashable } from 'json-stash';
+import { stashable } from "json-stash";
 
 @stashable({ group: 'corporate' })
 class Employee {}
@@ -525,7 +738,7 @@ class Department {}
 Then later,
 
 ```typescript
-import { stashable, getStasher } from 'json-stash';
+import { stashable, getStasher } from "json-stash";
 const myStasher = getStasher();
 myStasher.addClasses(...stashable.group('corporate'));
 ```
@@ -534,7 +747,7 @@ For classes that can't be serialized like objects (because they have private pro
 you can identify save and load methods using special subdecorators of `@stashable`:
 
 ```typescript
-import { stashable } from 'json-stash';
+import { stashable } from "json-stash";
 
 @stashable()
 class Agent {
