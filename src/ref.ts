@@ -31,9 +31,9 @@ export function getRefSaver(): RefSaver {
 
   function refSaver(path: string, value: unknown) {
     if (value === null || typeof value !== "object") return value;
-    const refPath = cache.get(value);
+    const refPath = cache.get(value as object);
     if (refPath) return { $ref: refPath };
-    cache.set(value, path);
+    cache.set(value as object, path);
     return value;
   }
 
@@ -61,7 +61,7 @@ export function getRefResolver(root: StashRoot) {
 
   const resolve = deepMap(
     (node) => (isRef(node) ? refs.get(node.$ref) : node),
-    { depthFirst: true, inPlace: true, avoidCircular: false }
+    { depthFirst: true, inPlace: true, avoidCircular: false },
   );
 
   return { registerValue, resolve };

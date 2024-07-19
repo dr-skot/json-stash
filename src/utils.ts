@@ -35,14 +35,12 @@ type DeepMapOpts = {
   inPlace: boolean;
   depthFirst: boolean;
   avoidCircular: boolean;
-  isLeaf: (node: unknown) => boolean;
 };
 
 const DEFAULT_DEEP_MAP_OPTS: DeepMapOpts = {
   inPlace: true,
   depthFirst: true,
   avoidCircular: true,
-  isLeaf: () => false,
 };
 
 // returns a copy, unless inPlace is true
@@ -53,43 +51,33 @@ export function deepMap(
   fn: (v: unknown, path: string) => unknown,
   opts?: Partial<DeepMapOpts>,
 ) {
-  const { inPlace, depthFirst, avoidCircular, isLeaf } = {
+  const { inPlace, depthFirst, avoidCircular } = {
     ...DEFAULT_DEEP_MAP_OPTS,
     ...opts,
   };
 
   const seen = new WeakSet();
   function recurse(node: unknown, path: string): unknown {
-    const nodeType = isLeaf(node)
-      ? "leaf"
-      : Array.isArray(node)
-        ? "array"
-        : isPlainObject(node)
-          ? "object"
-          : "leaf";
-
     // don't recurse infinitely on circular references
-    if (avoidCircular && nodeType !== "leaf") {
-      if (seen.has(node as object)) return node;
-      seen.add(node as object);
+    if (avoidCircular && (Array.isArray(node) || isPlainObject(node))) {
+      if (seen.has(node)) return node;
+      seen.add(node);
     }
 
     // breadth-first? then do callback function before recursing
     if (!depthFirst) node = fn(node, path);
 
     // recurse if node is an array or object
-    if (nodeType === "array") {
-      let array = node as unknown[];
-      array = inPlace ? array : [...array];
+    if (Array.isArray(node)) {
+      const array = inPlace ? node : [...node];
       for (let i = 0; i < array.length; i++) {
         array[i] = recurse(array[i], appendPath(path, i));
       }
       node = array;
     }
-    if (nodeType === "object") {
+    if (isPlainObject(node)) {
       // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
-      let obj = node as Record<string, unknown>;
-      obj = inPlace ? obj : { ...obj };
+      const obj = inPlace ? node : { ...node };
       for (const k in obj) {
         obj[k] = recurse(obj[k], appendPath(path, k));
       }

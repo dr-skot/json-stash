@@ -466,4 +466,41 @@ describe("identical objects", () => {
     expect(output.get("c")).toBe(output.get("d"));
     expect(output.get("c").get("a")).toBe(output.get("c").get("b"));
   });
+
+  it("can handle nested plain objects that are recognized by a serializer", () => {
+    // create a queue object that is recognized by a serializer
+    function getQueue(items: any[]) {
+      items = [...items];
+      return {
+        isQueue: true,
+        enqueue: (item: any) => items.unshift(item),
+        dequeue: () => items.pop(),
+        save: () => [...items],
+        set: (newItems: any[]) => (items = newItems),
+      };
+    }
+    type Queue = ReturnType<typeof getQueue>;
+
+    addSerializers({
+      key: "Queue",
+      type: Object,
+      test: (obj) => obj.isQueue,
+      save: (queue: Queue) => queue.save(),
+      load: (data: any[], existing?: Queue) => {
+        if (!existing) return getQueue(data);
+        existing.set(data);
+        return existing;
+      },
+    });
+
+    const q = getQueue([]);
+
+    // make it circular
+    q.enqueue(q);
+
+    expect(stash(q)).toBe('{"$type":"Queue","data":[{"$ref":"$"}]}');
+
+    const unstashed = unstash(stash(q));
+    expect(unstashed.dequeue()).toBe(unstashed);
+  });
 });

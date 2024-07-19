@@ -28,14 +28,7 @@ export function stash(data: unknown, serializers?: Serializer<any, any>[]) {
 
   const encoded = deepMap(
     (value, path) => serialize(saveRefs(path, escape(value)), serializers),
-    {
-      depthFirst: false,
-      inPlace: false,
-      avoidCircular: false,
-      isLeaf: (value) =>
-        // TODO guarantee all serializers have a test
-        !!serializers?.some((s) => (s.test || defaultTest(s))(value)),
-    },
+    { depthFirst: false, inPlace: false, avoidCircular: false },
   )(root) as StashRoot;
 
   // unescape escaped properties

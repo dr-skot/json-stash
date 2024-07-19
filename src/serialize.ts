@@ -19,9 +19,6 @@ export function serialize(
   value: unknown,
   serializers: Serializer<any, any>[] = [],
 ) {
-  // only serialize non-vanilla objects
-  if (isVanilla(value)) return value;
-
   // find a matching serializer in the list
   const serializer = serializers.find((s) => (s.test || defaultTest(s))(value));
 
@@ -34,7 +31,10 @@ export function serialize(
   }
 
   // otherwise punt; value will just get JSON.stringified
-  console.warn(`json-stash: no serializer found for ${value}`);
+  // if it's not vanilla, give a warning
+  if (!isVanilla(value)) {
+    console.warn(`json-stash: no serializer found for ${value}`);
+  }
   return value;
 }
 
