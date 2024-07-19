@@ -1,5 +1,11 @@
 import { getRefResolver, getRefSaver, hasRefs, isRef } from "./ref";
-import { reload, deserialize, isDeserializable, serialize } from "./serialize";
+import {
+  reload,
+  deserialize,
+  isDeserializable,
+  serialize,
+  defaultTest,
+} from "./serialize";
 import { deepMap } from "./utils";
 import { getObjectEscaper } from "./escape";
 import { Serializer } from "./serializers";
@@ -22,7 +28,14 @@ export function stash(data: unknown, serializers?: Serializer<any, any>[]) {
 
   const encoded = deepMap(
     (value, path) => serialize(saveRefs(path, escape(value)), serializers),
-    { depthFirst: false, inPlace: false, avoidCircular: false }
+    {
+      depthFirst: false,
+      inPlace: false,
+      avoidCircular: false,
+      isLeaf: (value) =>
+        // TODO guarantee all serializers have a test
+        !!serializers?.some((s) => (s.test || defaultTest(s))(value)),
+    },
   )(root) as StashRoot;
 
   // unescape escaped properties
@@ -61,7 +74,7 @@ export function unstash(json: string, serializers?: Serializer<any, any>[]) {
       }
       return refs.registerValue(node, path);
     },
-    { depthFirst: true, inPlace: false, avoidCircular: false }
+    { depthFirst: true, inPlace: false, avoidCircular: false },
   )(root) as StashRoot;
 
   // second pass: resolve refs, note which deserialized objects need unescaping

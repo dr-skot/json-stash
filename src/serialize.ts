@@ -65,8 +65,9 @@ export function reload(
   serializer?.load(data, value);
 }
 
+// TODO save this as test in the serializer
 // default test is instanceof
-function defaultTest(serializer: Serializer<any, any>) {
+export function defaultTest(serializer: Serializer<any, any>) {
   return (value: unknown) => {
     try {
       return value instanceof serializer.type;

@@ -31,38 +31,74 @@ export function deepForEach(fn: (v: unknown) => void) {
   return recurse;
 }
 
+type DeepMapOpts = {
+  inPlace: boolean;
+  depthFirst: boolean;
+  avoidCircular: boolean;
+  isLeaf: (node: unknown) => boolean;
+};
+
+const DEFAULT_DEEP_MAP_OPTS: DeepMapOpts = {
+  inPlace: true,
+  depthFirst: true,
+  avoidCircular: true,
+  isLeaf: () => false,
+};
+
 // returns a copy, unless inPlace is true
 // depth-first traversal, unless depthFirst is false
 // avoids circular references, unless avoidCircular is false
-// NOTE: ignores symbol keys; not an issue for json-stash because symbol-keyed objects are not vanilla
+// NOTE: ignores symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
 export function deepMap(
   fn: (v: unknown, path: string) => unknown,
-  opts = { inPlace: true, depthFirst: true, avoidCircular: true },
+  opts?: Partial<DeepMapOpts>,
 ) {
+  const { inPlace, depthFirst, avoidCircular, isLeaf } = {
+    ...DEFAULT_DEEP_MAP_OPTS,
+    ...opts,
+  };
+
   const seen = new WeakSet();
   function recurse(node: unknown, path: string): unknown {
+    const nodeType = isLeaf(node)
+      ? "leaf"
+      : Array.isArray(node)
+        ? "array"
+        : isPlainObject(node)
+          ? "object"
+          : "leaf";
+
     // don't recurse infinitely on circular references
-    if (opts.avoidCircular && (isPlainObject(node) || Array.isArray(node))) {
-      if (seen.has(node)) return node;
-      seen.add(node);
+    if (avoidCircular && nodeType !== "leaf") {
+      if (seen.has(node as object)) return node;
+      seen.add(node as object);
     }
-    if (!opts.depthFirst) node = fn(node, path);
-    if (Array.isArray(node)) {
-      const array = opts.inPlace ? node : [...node];
+
+    // breadth-first? then do callback function before recursing
+    if (!depthFirst) node = fn(node, path);
+
+    // recurse if node is an array or object
+    if (nodeType === "array") {
+      let array = node as unknown[];
+      array = inPlace ? array : [...array];
       for (let i = 0; i < array.length; i++) {
         array[i] = recurse(array[i], appendPath(path, i));
       }
       node = array;
     }
-    if (isPlainObject(node)) {
-      const obj = opts.inPlace ? node : { ...node };
-      // TODO in ignores symbol keys -- test symbol keys and make this work properly
+    if (nodeType === "object") {
+      // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
+      let obj = node as Record<string, unknown>;
+      obj = inPlace ? obj : { ...obj };
       for (const k in obj) {
         obj[k] = recurse(obj[k], appendPath(path, k));
       }
       node = obj;
     }
-    if (opts.depthFirst) node = fn(node, path);
+
+    // depth-first? then do callback function after recursing
+    if (depthFirst) node = fn(node, path);
+
     return node;
   }
 
