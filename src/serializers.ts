@@ -17,11 +17,12 @@ export interface Serializer<Type, Data> {
   key?: string;
 
   // reconstructs the object from the data returned by `save`
-  // if `existing` is defined, repopulate it with `data`; otherwise return a new object
+  // if `existing` is defined, repopulate in-place it with `data`; otherwise return a new object
   // you only need to support the `existing` parameter if `Data` (return value of `save`) can contain objects
   load: (data: Data, existing?: Type) => Type;
 
-  // updates an existing object with new data
+  // updates the object with new data
+  // if this exists, it is used instead of the two-parameter call to `load`
   update?: (object: Type, data: Data) => void;
 }
 
@@ -72,11 +73,8 @@ export const DEFAULT_SERIALIZERS = [
     type: Object,
     test: (obj) => isPlainObject(obj) && hasSymbolKeys(obj),
     save: (obj) => getOwnKeys(obj).map((key) => [key, obj[key]]),
-    load: (data, obj = {}) => {
-      getOwnKeys(obj).forEach((key) => delete obj[key]);
-      for (const [key, value] of data) obj[key] = value;
-      return obj;
-    },
+    // strangely: Object.entries ignores symbol keys, but Object.fromEntries doesn't
+    load: (data, obj = {}) => setObj(obj, Object.fromEntries(data)),
   },
 
   {
@@ -200,8 +198,8 @@ export function classSerializer<
 }
 
 function setObj(obj: any, data: any) {
-  for (const k in obj) delete obj[k];
-  for (const k in data) obj[k] = data[k];
+  getOwnKeys(obj).forEach((key) => delete obj[key]);
+  Object.assign(obj, data);
   return obj;
 }
 
