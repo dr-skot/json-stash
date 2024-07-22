@@ -5,6 +5,8 @@ import {
   type Serializer,
   classSerializer,
   ClassSerializerOpts,
+  normalizeSerializer,
+  NormalizedSerializer,
 } from "./serializers";
 import { Class } from "./utils";
 
@@ -19,7 +21,7 @@ export function getStasher() {
         ...serializers,
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ];
+      ].map(normalizeSerializer) as NormalizedSerializer[];
       return stash(data, allSerializers);
     },
 
@@ -28,7 +30,7 @@ export function getStasher() {
         ...serializers,
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ];
+      ].map(normalizeSerializer) as NormalizedSerializer[];
       return unstash(json, allSerializers);
     },
 

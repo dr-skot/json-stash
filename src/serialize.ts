@@ -1,5 +1,5 @@
 import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
-import { getKey, type Serializer } from "./serializers";
+import { getKey, NormalizedSerializer, type Serializer } from "./serializers";
 
 // a stashed object that needs to be deserialized looks like this
 type Deserializable = {
@@ -15,17 +15,14 @@ export function isDeserializable(value: unknown): value is Deserializable {
   );
 }
 
-export function serialize(
-  value: unknown,
-  serializers: Serializer<any, any>[] = [],
-) {
+export function serialize(value: unknown, serializers: NormalizedSerializer[]) {
   // find a matching serializer in the list
-  const serializer = serializers.find((s) => (s.test || defaultTest(s))(value));
+  const serializer = serializers.find((s) => s.test(value));
 
   // if we found one, use it
   if (serializer) {
     return {
-      $type: getKey(serializer),
+      $type: serializer.key,
       data: serializer.save(value),
     };
   }
@@ -41,10 +38,10 @@ export function serialize(
 // the first pass of unstash, before refs are resolved
 export function deserialize(
   spec: Deserializable,
-  serializers: Serializer<any, any>[] = [],
+  serializers: NormalizedSerializer[],
 ) {
   // if there's a matching serializer, use it
-  const serializer = serializers.find((s) => getKey(s) === spec.$type);
+  const serializer = serializers.find((s) => s.key === spec.$type);
   if (serializer) return serializer.load(spec.data as any);
 
   // otherwise punt
@@ -56,10 +53,10 @@ export function deserialize(
 export function reload(
   spec: Deserializable,
   value: unknown,
-  serializers: Serializer<any, any>[] = [],
+  serializers: NormalizedSerializer[],
 ) {
   // we'll find a matching serializer this time; second pass only happens if the first pass found one
-  const serializer = serializers.find((s) => getKey(s) === spec.$type);
+  const serializer = serializers.find((s) => s.key === spec.$type);
   if (!serializer) {
     // should we throw?
     console.warn(`json-stash: no deserializer found for ${spec}`);
@@ -68,11 +65,8 @@ export function reload(
 
   const data = spec.data;
 
-  // TODO discontinue load in favor of update
-  //   throw error if no update method found
   // value will be mutated in place
-  if (serializer.update) serializer.update(value, data);
-  else serializer.load(data, value);
+  serializer.update(value, data);
 }
 
 // TODO save this as test in the serializer
@@ -80,7 +74,7 @@ export function reload(
 export function defaultTest(serializer: Serializer<any, any>) {
   return (value: unknown) => {
     try {
-      return value instanceof serializer.type;
+      return serializer.type && value instanceof serializer.type;
     } catch (e) {
       return false;
     }

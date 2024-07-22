@@ -1,11 +1,12 @@
 import { Class, getOwnKeys, hasSymbolKeys, isPlainObject } from "./utils";
+import { defaultTest } from "./serialize";
 
 // TODO properly type this; remove all "any"s
 
 export interface Serializer<Type, Data> {
   // the object type to serialize, typically a class constructor (e.g. `Date`);
   // but can also be a primitive type (e.g. `symbol`, `bigint`)
-  type: any;
+  type?: Class<Type>;
 
   // detects objects of this type; default is `(obj) => obj instanceof type`
   test?: (value: any) => boolean;
@@ -26,21 +27,27 @@ export interface Serializer<Type, Data> {
   update?: (object: Type, data: Data) => void;
 }
 
+function keyAndTest(type: Class<any>) {
+  return {
+    key: type.name,
+    test: (obj: any) => obj instanceof type,
+  };
+}
+
 export const DEFAULT_SERIALIZERS = [
   {
-    type: Date,
+    ...keyAndTest(Date),
     save: (value: Date) => value.toISOString(),
     load: (iso) => new Date(iso),
   },
 
   {
-    type: RegExp,
+    ...keyAndTest(RegExp),
     save: (value: RegExp) => [value.source, value.flags],
     load: ([source, flags]) => new RegExp(source, flags),
   },
 
   {
-    type: typeof Symbol(),
     key: "symbol",
     test: (x: any) => typeof x === "symbol",
     save: (x: symbol) => [x.description, Symbol.keyFor(x)],
@@ -50,7 +57,6 @@ export const DEFAULT_SERIALIZERS = [
   },
 
   {
-    type: typeof BigInt(0),
     key: "bigint",
     test: (x: any) => typeof x === "bigint",
     save: (x: bigint) => x.toString(),
@@ -58,7 +64,7 @@ export const DEFAULT_SERIALIZERS = [
   },
 
   {
-    type: Error,
+    ...keyAndTest(Error),
     save: (error) => [error.name, error.message, error.stack],
     load: ([name, message, stack]) => {
       const error = new Error(message);
@@ -70,15 +76,15 @@ export const DEFAULT_SERIALIZERS = [
 
   {
     // plain object with symbol keys
-    type: Object,
+    key: "Object",
     test: (obj) => isPlainObject(obj) && hasSymbolKeys(obj),
     save: (obj) => getOwnKeys(obj).map((key) => [key, obj[key]]),
     // strangely: Object.entries ignores symbol keys, but Object.fromEntries doesn't
-    load: (data, obj = {}) => setObj(obj, Object.fromEntries(data)),
+    load: (data, obj = {}) => Object.assign(obj, Object.fromEntries(data)),
   },
 
   {
-    type: Map,
+    ...keyAndTest(Map),
     save: (map) => [...map],
     load: (data, map = new Map()) => {
       map.clear();
@@ -88,7 +94,7 @@ export const DEFAULT_SERIALIZERS = [
   },
 
   {
-    type: Set,
+    ...keyAndTest(Set),
     save: (set) => Array.from(set),
     load: (data, set = new Set()) => {
       set.clear();
@@ -98,13 +104,12 @@ export const DEFAULT_SERIALIZERS = [
   } as Serializer<Set<unknown>, unknown[]>,
 
   {
-    type: URL,
+    ...keyAndTest(URL),
     save: (url) => url.toString(),
     load: (str) => new URL(str),
   },
 
   {
-    type: typeof Infinity,
     key: "number",
     test: (x: any) => [Infinity, -Infinity, NaN].includes(x),
     save: (x: number) =>
@@ -122,7 +127,7 @@ export const DEFAULT_SERIALIZERS = [
   },
 
   {
-    type: ArrayBuffer,
+    ...keyAndTest(ArrayBuffer),
     save: (buffer) => Array.from(new Uint8Array(buffer)),
     load: (data) => new Uint8Array(data).buffer,
   },
@@ -140,14 +145,15 @@ export const DEFAULT_SERIALIZERS = [
     BigInt64Array,
     BigUint64Array,
   ].map((type) => ({
-    type,
+    ...keyAndTest(type),
     save: (array: any) => Array.from(array),
     load: (data: any[]) => new type(data),
   })),
 ] as Serializer<any, any>[];
 
 export function getKey(serializer: Serializer<any, any>) {
-  return serializer.key || serializer.type.name;
+  // TODO serializer must have either a key or or a type with a name
+  return serializer.key || serializer.type?.name;
 }
 
 // TODO if save is not defined, no load or update will be ignored
@@ -158,6 +164,8 @@ export interface ClassSerializerOpts<Type, Data = any> {
   load?: string | ((data: Data) => Type);
   update?: string | ((obj: Type, data: Data) => void);
 }
+
+const isFunction = (x: unknown): x is Function => typeof x === "function";
 
 export function classSerializer<
   Instance extends Record<string, any>,
@@ -171,33 +179,35 @@ export function classSerializer<
 
   return {
     key,
-    type,
+    test: (obj: any) => obj instanceof type,
     save: (obj: Instance): Data => {
       if (!save) return { ...obj } as unknown as Data;
-      if (typeof save === "function") return save(obj);
-      // TODO make sure obj[opts.save] is a function
-      return obj[save]?.();
+      if (isFunction(save)) return save(obj);
+      if (isFunction(obj[save])) return obj[save](obj);
+      throw new Error(`save method "${save}" not found on ${type.name}`);
     },
-    load: (data: Data, obj?: Instance): Instance => {
-      if (!obj) {
-        if (!save) return setObj(new type(), data);
-        // TODO make sure data is an array
-        if (!load) return new type(...(data as unknown[]));
-        if (typeof load === "function") return load(data);
-        // TODO make sure obj[load] is a function
-        return (type as any)[load](data);
+    load: (data: Data): Instance => {
+      if (!save) return Object.assign(new type(), data);
+      if (!load) {
+        if (Array.isArray(data)) return new type(...(data as unknown[]));
+        throw new Error(`no load method specified and data is not an array`);
       }
-      if (!save) return setObj(obj, data);
-      if (!update) throw noUpdateMethodError(key);
-      if (typeof update === "function") update(obj, data);
-      // TODO make sure obj[opts.update] is a function
-      else obj[update](data);
-      return obj;
+      if (isFunction(load)) return load(data);
+      if (isFunction((type as any)[load])) return (type as any)[load](data);
+      throw new Error(`load method "${load}" not found on ${type.name}`);
+    },
+    update(obj: Instance, data: Data) {
+      if (!save) Object.assign(obj, data);
+      else if (!update) throw noUpdateMethodError(key);
+      else if (isFunction(update)) update(obj, data);
+      else if (isFunction(obj[update])) obj[update](data);
+      else
+        throw new Error(`update method "${update}" not found on ${type.name}`);
     },
   };
 }
 
-function setObj(obj: any, data: any) {
+function resetObject(obj: any, data: any) {
   getOwnKeys(obj).forEach((key) => delete obj[key]);
   Object.assign(obj, data);
   return obj;
@@ -209,4 +219,25 @@ function noUpdateMethodError(key: string) {
   return new Error(
     `json-stash: Second pass required while unstashing but no update method found for ${key}`,
   );
+}
+
+type SerializerSpec = Serializer<any, any>;
+
+export interface NormalizedSerializer<Type = unknown, Data = unknown> {
+  key: string;
+  test: (value: unknown) => boolean;
+  save: (value: Type) => Data;
+  load: (data: Data) => Type;
+  update: (value: Type, data: Data) => void;
+}
+
+export function normalizeSerializer(serializer: SerializerSpec) {
+  return {
+    key: serializer.key || getKey(serializer),
+    test: serializer.test || defaultTest(serializer),
+    ...serializer,
+    update:
+      // TODO wrap load in error throw if two parameters are passed and load returns a different object
+      serializer.update || ((value, data) => serializer.load(data, value)),
+  };
 }
