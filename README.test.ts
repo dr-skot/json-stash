@@ -517,7 +517,6 @@ describe("Other data", () => {
 
     addSerializers({
       key: "Queue",
-      type: Object,
       test: (obj) => obj.isQueue,
       save: (queue: Queue) => queue.save(),
       load: (data: any[]) => getQueue(data),
