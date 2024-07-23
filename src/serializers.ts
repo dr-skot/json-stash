@@ -232,12 +232,17 @@ export interface NormalizedSerializer<Type = unknown, Data = unknown> {
 }
 
 export function normalizeSerializer(serializer: SerializerSpec) {
+  // TODO do not accept no key
+  const key = serializer.key || getKey(serializer) || "";
   return {
-    key: serializer.key || getKey(serializer),
+    key,
     test: serializer.test || defaultTest(serializer),
     ...serializer,
     update:
-      // TODO wrap load in error throw if two parameters are passed and load returns a different object
-      serializer.update || ((value, data) => serializer.load(data, value)),
+      serializer.update ||
+      ((value, data) => {
+        const result = serializer.load(data, value);
+        if (result !== value) throw noUpdateMethodError(key);
+      }),
   };
 }
