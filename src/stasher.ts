@@ -38,6 +38,10 @@ export function getStasher() {
       addedSerializers.splice(0, 0, ...serializers);
     },
 
+    addSerializer(serializer: Serializer<any, any>) {
+      addedSerializers.unshift(serializer);
+    },
+
     addClass<T extends Instance>(
       type: Class<T>,
       keyOrOpts?: string | ClassSerializerOpts<T>,
