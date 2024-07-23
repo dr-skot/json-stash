@@ -101,10 +101,6 @@ function appendPath(path: string, key: string | number) {
   return path ? `${path}.${key}` : `${key}`;
 }
 
-export interface Class<Type = any, Args extends unknown[] = any[]> {
-  new (...args: Args): Type;
-}
-
 export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {
   return [
     ...Object.getOwnPropertyNames(obj),
@@ -115,3 +111,6 @@ export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {
 export function hasSymbolKeys(obj: object) {
   return Object.getOwnPropertySymbols(obj).length > 0;
 }
+
+export const isFunction = (x: unknown): x is Function =>
+  typeof x === "function";

@@ -1,5 +1,8 @@
 import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
-import { getKey, NormalizedSerializer, type Serializer } from "./serializers";
+import { LegacySerializer } from "./types/LegacySerializer";
+import { Serializer } from "./types/Serializer";
+import { NoUpdateMethodError } from "./errors/NoUpdateMethodError";
+import { getKey } from "./normalizeSerializer";
 
 // a stashed object that needs to be deserialized looks like this
 type Deserializable = {
@@ -15,7 +18,7 @@ export function isDeserializable(value: unknown): value is Deserializable {
   );
 }
 
-export function serialize(value: unknown, serializers: NormalizedSerializer[]) {
+export function serialize(value: unknown, serializers: Serializer[]) {
   // find a matching serializer in the list
   const serializer = serializers.find((s) => s.test(value));
 
@@ -36,10 +39,7 @@ export function serialize(value: unknown, serializers: NormalizedSerializer[]) {
 }
 
 // the first pass of unstash, before refs are resolved
-export function deserialize(
-  spec: Deserializable,
-  serializers: NormalizedSerializer[],
-) {
+export function deserialize(spec: Deserializable, serializers: Serializer[]) {
   // if there's a matching serializer, use it
   const serializer = serializers.find((s) => s.key === spec.$type);
   if (serializer) return serializer.load(spec.data as any);
@@ -53,7 +53,7 @@ export function deserialize(
 export function reload(
   spec: Deserializable,
   value: unknown,
-  serializers: NormalizedSerializer[],
+  serializers: Serializer[],
 ) {
   // we'll find a matching serializer this time; second pass only happens if the first pass found one
   const serializer = serializers.find((s) => s.key === spec.$type);
@@ -66,12 +66,13 @@ export function reload(
   const data = spec.data;
 
   // value will be mutated in place
-  serializer.update(value, data);
+  if (serializer.update) serializer.update(value, data);
+  else throw new NoUpdateMethodError(serializer.key);
 }
 
 // TODO save this as test in the serializer
 // default test is instanceof
-export function defaultTest(serializer: Serializer<any, any>) {
+export function defaultTest(serializer: LegacySerializer<any, any>) {
   return (value: unknown) => {
     try {
       return serializer.type && value instanceof serializer.type;

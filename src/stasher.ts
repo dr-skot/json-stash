@@ -1,44 +1,40 @@
 import { stash, unstash } from "./stash";
-import {
-  DEFAULT_SERIALIZERS,
-  getKey,
-  type Serializer,
-  classSerializer,
-  ClassSerializerOpts,
-  normalizeSerializer,
-  NormalizedSerializer,
-} from "./serializers";
-import { Class } from "./utils";
+import { DEFAULT_SERIALIZERS } from "./serializers";
+import { LegacySerializer } from "./types/LegacySerializer";
+import { Class } from "./types/Class";
+import { classSerializer, ClassSerializerOpts } from "./classSerializer";
+import { Serializer } from "./types/Serializer";
+import { getKey, normalizeSerializer } from "./normalizeSerializer";
 
 // a stasher can `stash` and `unstash` objects, using the default serializers
 // plus any additional serializers added to with `addSerializers`
 export function getStasher() {
-  let addedSerializers: Serializer<any, any>[] = [];
+  let addedSerializers: LegacySerializer<any, any>[] = [];
 
   const methods = {
-    stash: (data: unknown, serializers: Serializer<any, any>[] = []) => {
+    stash: (data: unknown, serializers: LegacySerializer<any, any>[] = []) => {
       const allSerializers = [
         ...serializers,
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ].map(normalizeSerializer) as NormalizedSerializer[];
+      ].map(normalizeSerializer) as Serializer[];
       return stash(data, allSerializers);
     },
 
-    unstash: (json: string, serializers: Serializer<any, any>[] = []) => {
+    unstash: (json: string, serializers: LegacySerializer<any, any>[] = []) => {
       const allSerializers = [
         ...serializers,
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ].map(normalizeSerializer) as NormalizedSerializer[];
+      ].map(normalizeSerializer) as Serializer[];
       return unstash(json, allSerializers);
     },
 
-    addSerializers(...serializers: Serializer<any, any>[]) {
+    addSerializers(...serializers: LegacySerializer<any, any>[]) {
       addedSerializers.splice(0, 0, ...serializers);
     },
 
-    addSerializer(serializer: Serializer<any, any>) {
+    addSerializer(serializer: LegacySerializer<any, any>) {
       addedSerializers.unshift(serializer);
     },
 

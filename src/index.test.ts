@@ -4,7 +4,7 @@ import {
   addSerializers,
   clearSerializers,
   getStasher,
-  type Serializer,
+  type LegacySerializer,
 } from "./index";
 import { isPlainObject } from "./utils";
 
@@ -206,7 +206,7 @@ describe("stash", () => {
       }
     }
 
-    const moonGuySerializer: Serializer<MoonGuy, [string, number]> = {
+    const moonGuySerializer: LegacySerializer<MoonGuy, [string, number]> = {
       type: MoonGuy,
       key: "MoonGuy",
       save: (guy: MoonGuy) => [guy.name, guy.order],
@@ -356,7 +356,7 @@ describe("addSerializers", () => {
       }
     }
 
-    const agentSerializer: Serializer<Agent, [string, string]> = {
+    const agentSerializer: LegacySerializer<Agent, [string, string]> = {
       type: Agent,
       save: (agent) => [agent.first, agent.last],
       load: ([first, last]) => new Agent(first, last),

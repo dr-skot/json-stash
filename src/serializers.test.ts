@@ -1,8 +1,5 @@
-import {
-  classSerializer,
-  ClassSerializerOpts,
-  DEFAULT_SERIALIZERS,
-} from "./serializers";
+import { DEFAULT_SERIALIZERS } from "./serializers";
+import { classSerializer, ClassSerializerOpts } from "./classSerializer";
 
 describe("the built-in symbol serializer", () => {
   const serializer = DEFAULT_SERIALIZERS.find(({ key }) => key === "symbol");
@@ -108,50 +105,6 @@ describe("the class serializer", function () {
     });
   });
 
-  it("should call update method when load is called with existing object", function () {
-    class Lists {
-      #first: number[] = [];
-      #second: number[] = [];
-      constructor(first: number[], second: number[]) {
-        this.setLists(first, second);
-      }
-      setLists(first: number[], second: number[]) {
-        this.#first = first;
-        this.#second = second;
-      }
-      getLists() {
-        return [this.#first, this.#second];
-      }
-      save() {
-        return [this.#first, this.#second];
-      }
-      static load([first, second]: [number[], number[]]) {
-        return new Lists(first, second);
-      }
-      update([first, second]: [number[], number[]]) {
-        this.setLists(first, second);
-      }
-    }
-
-    const serializer = classSerializer(Lists, {
-      save: "save",
-      load: "load",
-      update: "update",
-    });
-    const list = [1, 2, 3];
-    // emulate first round of deserialization with duplicate reference
-    // @ts-ignore
-    const loaded = serializer.load([[1, 2, 3], { $ref: "$.0" }]) as Lists;
-    const loadedLists = loaded.getLists();
-    expect(loadedLists[0]).not.toBe(loadedLists[1]);
-    // emulate second round with duplicate reference resolved
-    // @ts-ignore
-    const updated = serializer.load([list, list], loaded as any) as Lists;
-    expect(updated).toBe(loaded);
-    const updatedLists = updated.getLists();
-    expect(updatedLists[0]).toBe(updatedLists[1]);
-  });
-
   it("should serialize an object with a save function", function () {
     class Person {
       #name: string;
@@ -210,81 +163,5 @@ describe("the class serializer", function () {
       name: "Madeline",
       age: 101,
     });
-  });
-
-  it("should call update function when load is called with existing object", function () {
-    class Lists {
-      #first: number[] = [];
-      #second: number[] = [];
-      constructor(first: number[], second: number[]) {
-        this.setLists(first, second);
-      }
-      setLists(first: number[], second: number[]) {
-        this.#first = first;
-        this.#second = second;
-      }
-      getLists() {
-        return [this.#first, this.#second];
-      }
-      save() {
-        return [this.#first, this.#second];
-      }
-      static load([first, second]: [number[], number[]]) {
-        return new Lists(first, second);
-      }
-      update([first, second]: [number[], number[]]) {
-        this.setLists(first, second);
-      }
-    }
-
-    const serializer = classSerializer(Lists, {
-      save: "save",
-      load: "load",
-      update: (obj, data: [number[], number[]]) => obj.update(data),
-    });
-    const list = [1, 2, 3];
-    // emulate first round of deserialization with duplicate reference
-    // @ts-ignore
-    const loaded = serializer.load([[1, 2, 3], { $ref: "$.0" }]) as Lists;
-    const loadedLists = loaded.getLists();
-    expect(loadedLists[0]).not.toBe(loadedLists[1]);
-    // emulate second round with duplicate reference resolved
-    // @ts-ignore
-    const updated = serializer.load([list, list], loaded as any) as Lists;
-    expect(updated).toBe(loaded);
-    const updatedLists = updated.getLists();
-    expect(updatedLists[0]).toBe(updatedLists[1]);
-  });
-
-  it("should throw an error if necessary update function is not provided", () => {
-    class Lists {
-      #first: number[] = [];
-      #second: number[] = [];
-      constructor(first: number[], second: number[]) {
-        this.setLists(first, second);
-      }
-      setLists(first: number[], second: number[]) {
-        this.#first = first;
-        this.#second = second;
-      }
-      getLists() {
-        return [this.#first, this.#second];
-      }
-      save() {
-        return [this.#first, this.#second];
-      }
-    }
-
-    const serializer = classSerializer(Lists, {
-      save: "save",
-    });
-    const list = [1, 2, 3];
-    // emulate first round of deserialization with duplicate reference
-    // @ts-ignore
-    const loaded = serializer.load([[1, 2, 3], { $ref: "$.0" }]) as Lists;
-    const loadedLists = loaded.getLists();
-    expect(loadedLists[0]).not.toBe(loadedLists[1]);
-    // emulate second round with duplicate reference resolved
-    expect(() => serializer.load([list, list], loaded)).toThrow();
   });
 });

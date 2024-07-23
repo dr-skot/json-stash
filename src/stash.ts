@@ -8,14 +8,15 @@ import {
 } from "./serialize";
 import { deepMap } from "./utils";
 import { getObjectEscaper } from "./escape";
-import { NormalizedSerializer, Serializer } from "./serializers";
+import { LegacySerializer } from "./types/LegacySerializer";
+import { Serializer } from "./types/Serializer";
 
 // a temporary root object that holds the data to be stashed or unstashed
 export type StashRoot = {
   $: any;
 };
 
-export function stash(data: unknown, serializers: NormalizedSerializer[]) {
+export function stash(data: unknown, serializers: Serializer[]) {
   // wrap data in a StashRoot
   const root: StashRoot = { $: data };
 
@@ -38,7 +39,7 @@ export function stash(data: unknown, serializers: NormalizedSerializer[]) {
   return JSON.stringify(encoded.$);
 }
 
-export function unstash(json: string, serializers: NormalizedSerializer[]) {
+export function unstash(json: string, serializers: Serializer[]) {
   // wrap the JSON in a StashRoot
   const root = { $: JSON.parse(json) };
 

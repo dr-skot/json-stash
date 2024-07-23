@@ -1,6 +1,7 @@
 import { addSerializers } from "./index";
-import { classSerializer, ClassSerializerOpts } from "./serializers";
-import { Class } from "./utils";
+
+import { Class } from "./types/Class";
+import { classSerializer, ClassSerializerOpts } from "./classSerializer";
 
 // TODO properly type this; remove all "any"s
 
