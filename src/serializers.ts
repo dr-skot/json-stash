@@ -29,16 +29,51 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     load: (str) => BigInt(str),
   } as Serializer<bigint, string>,
 
-  // TODO support subclasses of Error
-  classSerializer(Error, {
-    save: ({ name, message, stack }) => [name, message, stack],
-    load: ([name, message, stack]) => {
-      const error = new Error(message);
+  /* TODO add AggregateError when we're sure it won't break anything,
+        since it's not supported in all environments
+  classSerializer(AggregateError, {
+    save: ({ name, message, stack, errors }) => ({
+      name,
+      message,
+      stack,
+      errors,
+    }),
+    load: ({ name, message, stack, errors }) => {
+      const error = new AggregateError(errors, message);
       error.name = name;
       error.stack = stack;
       return error;
     },
-  }) as Serializer<Error, [string, string, string | undefined]>,
+  }) as Serializer<
+    AggregateError,
+    { name: string; message: string; stack?: string; errors: Error[] }
+  >,
+     */
+
+  // put Error last so that we test against subclasses first
+  ...[
+    EvalError,
+    RangeError,
+    ReferenceError,
+    SyntaxError,
+    TypeError,
+    URIError,
+    Error,
+  ].map(
+    (ErrorType) =>
+      classSerializer(ErrorType, {
+        save: ({ name, message, stack }) => ({ name, message, stack }),
+        load: ({ name, message, stack }) => {
+          const error = new ErrorType(message);
+          error.name = name;
+          error.stack = stack;
+          return error;
+        },
+      }) as Serializer<
+        Error,
+        { name: string; message: string; stack?: string }
+      >,
+  ),
 
   // plain object with symbol keys
   {

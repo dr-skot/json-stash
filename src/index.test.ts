@@ -93,6 +93,37 @@ describe("stash", () => {
     expect(output).toEqual(input);
   });
 
+  it("serializes Error objects", () => {
+    [
+      Error,
+      EvalError,
+      RangeError,
+      ReferenceError,
+      SyntaxError,
+      TypeError,
+      URIError,
+    ].forEach((ErrorType) => {
+      const input = catchError(new ErrorType("test error"));
+      const output = unstash(stash(input));
+      expect(output).toBeInstanceOf(ErrorType);
+      expect(output.name).toBe(input.name);
+      expect(output.message).toBe(input.message);
+      expect(output.stack).toBe(input.stack);
+    });
+  });
+
+  /* TODO resolve AggregateError and instate this test; AggregateError is not available here for some reason
+  it("serializes AggregateError objects", () => {
+    const input = catchError(new AggregateError([new Error("test error"), new RangeError("RangeError")], "aggregate error"));
+    const output = unstash(stash(input));
+    expect(output).toBeInstanceOf(AggregateError);
+    expect(output.name).toBe(input.name);
+    expect(output.message).toBe(input.message);
+    expect(output.stack).toBe(input.stack);
+    expect(output.errors).toEqual(input.errors);
+  }
+  */
+
   it("serializes Map objects", () => {
     const input = new Map([
       ["a", 1],
@@ -503,3 +534,11 @@ describe("identical objects", () => {
     expect(unstashed.dequeue()).toBe(unstashed);
   });
 });
+
+function catchError(error: Error): Error {
+  try {
+    throw error;
+  } catch (e: unknown) {
+    return e as Error;
+  }
+}

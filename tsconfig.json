@@ -6,6 +6,10 @@
         "declaration": true,
         "outDir": "./dist",
         "esModuleInterop": true,
+        "lib": [
+            "es6",
+            "es2021.promise"
+        ]
     },
     "files": [
         "src/index.ts"
