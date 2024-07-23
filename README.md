@@ -84,7 +84,7 @@ import { addSerializer } from 'json-stash'
 
 addSerializer({ 
   key: "book", 
-  test: (obj) => title in obj && text in obj,
+  test: (obj) => obj?.title && obj?.text,
   save: ({ title, text }) => { localStorage.setItem(title, text); return title },
   load: (title) => ({ title, text: localStorage.getItem(title) })
 })
@@ -224,12 +224,12 @@ line.y(4); // 11
 To stash this successfully, add a serializer for it.
 
 ```javascript
-import { addSerializers, stash, unstash } from "json-stash";
+import { addSerializer, stash, unstash } from "json-stash";
 
-addSerializers({
+addSerializer({
   key: "Line",
   test: (obj) => obj.type === "Line",
-  save: (obj) => obj.mb,
+  save: (obj) => obj.mb(),
   load: ([m, b]) => makeLine(m, b),
 });
 
@@ -307,7 +307,7 @@ const loner = makePerson([]);
 loner.setFriends([loner]);
 
 const unstashedLoner = unstash(stash(loner));
-// throws Error
+// throws Error: "json-stash: Second pass required while unstashing but no update method found for Person"
 ```
 
 ## Classes
@@ -408,16 +408,16 @@ class Person {
   setFriends(friends) { this.#friends = [...friends] }
 }
 
-const loner = makePerson([]);
+const loner = new Person();
 loner.setFriends([loner]);
 
 // without `update`
-addClass("Person", { save: "getFriends" });
+addClass(Person, { save: "getFriends" });
 unstash(stash(loner));
-// throws Error: no update function found
+// throws Error: json-stash: Second pass required while unstashing but no update method found for Person
 
 // with `update`
-addClass("Person", { save: "getFriends", update: "setFriends" });
+addClass(Person, { save: "getFriends", update: "setFriends" });
 const unstashedLoner = unstash(stash(loner));
 unstashedLoner.getFriends() === [unstashedLoner];
 // true
@@ -506,7 +506,7 @@ class Agent {...}
 class Person {
   constructor(...friends) { this.setFriends(friends) }
   getFriends() { return [...this.#friends] }
-  setFriends(friends) { this.friends = [...friends] }
+  setFriends(friends) { this.#friends = [...friends] }
 }
 ```
 
