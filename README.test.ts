@@ -247,7 +247,7 @@ describe("README", () => {
     const loner = makePerson([]);
     loner.setFriends([loner]);
 
-    expect(() => unstash(stash(loner))).toThrow("no update method");
+    expect(() => unstash(stash(loner))).toThrow("No update method");
   });
 
   test("Use `addClass` to make a class stashable", () => {
@@ -379,7 +379,7 @@ describe("README", () => {
 
     // without `update`
     addClass(Person, { save: "getFriends" });
-    expect(() => unstash(stash(loner))).toThrow("no update method found");
+    expect(() => unstash(stash(loner))).toThrow("No update method found");
     // throws Error: no update function found
 
     // with `update`

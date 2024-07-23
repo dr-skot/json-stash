@@ -9,33 +9,33 @@ import { getKey, normalizeSerializer } from "./normalizeSerializer";
 // a stasher can `stash` and `unstash` objects, using the default serializers
 // plus any additional serializers added to with `addSerializers`
 export function getStasher() {
-  let addedSerializers: LegacySerializer<any, any>[] = [];
+  let addedSerializers: Serializer[] = [];
 
   const methods = {
-    stash: (data: unknown, serializers: LegacySerializer<any, any>[] = []) => {
+    stash: (data: unknown, serializers: LegacySerializer[] = []) => {
       const allSerializers = [
-        ...serializers,
+        ...serializers.map(normalizeSerializer),
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ].map(normalizeSerializer) as Serializer[];
+      ] as Serializer[];
       return stash(data, allSerializers);
     },
 
-    unstash: (json: string, serializers: LegacySerializer<any, any>[] = []) => {
+    unstash: (json: string, serializers: LegacySerializer[] = []) => {
       const allSerializers = [
-        ...serializers,
+        ...serializers.map(normalizeSerializer),
         ...addedSerializers,
         ...DEFAULT_SERIALIZERS,
-      ].map(normalizeSerializer) as Serializer[];
+      ] as Serializer[];
       return unstash(json, allSerializers);
     },
 
-    addSerializers(...serializers: LegacySerializer<any, any>[]) {
-      addedSerializers.splice(0, 0, ...serializers);
+    addSerializers(...serializers: LegacySerializer[]) {
+      addedSerializers.splice(0, 0, ...serializers.map(normalizeSerializer));
     },
 
-    addSerializer(serializer: LegacySerializer<any, any>) {
-      addedSerializers.unshift(serializer);
+    addSerializer(serializer: LegacySerializer) {
+      addedSerializers.unshift(normalizeSerializer(serializer));
     },
 
     addClass<T extends Instance>(

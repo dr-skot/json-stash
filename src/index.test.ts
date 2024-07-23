@@ -6,7 +6,6 @@ import {
   getStasher,
   type LegacySerializer,
 } from "./index";
-import { isPlainObject } from "./utils";
 
 describe("stash", () => {
   beforeEach(() => {

@@ -1,8 +1,6 @@
 import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
-import { LegacySerializer } from "./types/LegacySerializer";
 import { Serializer } from "./types/Serializer";
 import { NoUpdateMethodError } from "./errors/NoUpdateMethodError";
-import { getKey } from "./normalizeSerializer";
 
 // a stashed object that needs to be deserialized looks like this
 type Deserializable = {
@@ -68,16 +66,4 @@ export function reload(
   // value will be mutated in place
   if (serializer.update) serializer.update(value, data);
   else throw new NoUpdateMethodError(serializer.key);
-}
-
-// TODO save this as test in the serializer
-// default test is instanceof
-export function defaultTest(serializer: LegacySerializer<any, any>) {
-  return (value: unknown) => {
-    try {
-      return serializer.type && value instanceof serializer.type;
-    } catch (e) {
-      return false;
-    }
-  };
 }

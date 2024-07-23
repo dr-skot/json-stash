@@ -1,4 +1,4 @@
-import { deepMap, hasOwnProperty, isPlainObject } from "./utils";
+import { deepMap, isPlainObject } from "./utils";
 
 // a data object that happens to have keys $ref, $type, or $esc
 // needs to be escaped so stash doesn't mistakenly try to dereference or deserialize or unescape it
@@ -59,7 +59,7 @@ export function getObjectEscaper() {
         }
         return node;
       },
-      { depthFirst: false, inPlace: true, avoidCircular: true }
+      { depthFirst: false, inPlace: true, avoidCircular: true },
     )(value);
     return result;
   }

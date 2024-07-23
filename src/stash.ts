@@ -1,14 +1,7 @@
 import { getRefResolver, getRefSaver, hasRefs, isRef } from "./ref";
-import {
-  reload,
-  deserialize,
-  isDeserializable,
-  serialize,
-  defaultTest,
-} from "./serialize";
+import { reload, deserialize, isDeserializable, serialize } from "./serialize";
 import { deepMap } from "./utils";
 import { getObjectEscaper } from "./escape";
-import { LegacySerializer } from "./types/LegacySerializer";
 import { Serializer } from "./types/Serializer";
 
 // a temporary root object that holds the data to be stashed or unstashed
