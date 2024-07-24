@@ -1,6 +1,6 @@
 # json-stash
 
-Serialize anything. `JSON.stringify` on steroids.
+Serialize anything. `JSON.stringify` [on steroids](#its-like-json-stringify).
 - handles circular and duplicate references
 - supports all your favorite built-in types: 
   `Date`, `RegExp`, `Map`, `Set`, `Error` and all its subclasses, all the `Array`s, `ArrayBuffer`,
@@ -158,15 +158,20 @@ See [User-defined types](#user-defined-types) for details.
 
 Where `data` is `JSON.stringify`able, or something that can in turn be `stash`ed.
 
-To do this, it maintains a library of serializers. Each serializer provides
+To do this, it maintains a library of _serializers_ for the datatypes it supports. Each serializer provides 
+ 
+- a `test` function to identify instances of the datatype
+- `save` and `load` functions, such that `load(save(value))` returns a copy of `value`.
+- a string `key` to identify this serializer
 
-- a `test` function to identify values to use it on: `if (test(value))`, use this serializer to convert `value`
-- a `key` string and `save` function to produce the encoding: `{ $type: key, data: save(value) }`
-- `load` and (optional) `update` functions for converting the value back
+When `stash` encounters a value, it searches its library for a serializer for which `serializer.test(value) === true`,
+if it finds one, it converts `value` to
 
-`unstash` reverses the process: when it encounters: `{ $type: key, data }`, it looks for a serializer
-in the library with a matching `key`, and uses its `load` function to recreate the original value:
-`value = load(data)`.
+```javascript
+{ $type: serializer.key, data: serialzier.save(value) }
+```
+
+When `unstash` encounters this, it looks up serializer with that `key` and calls `serializer.load(data)` to recreate the original value.
 
 Here's the built-in serializer for `RegExp`, for example:
 
@@ -188,21 +193,23 @@ unstash(stash(/search/gi));
 // /search/gi
 ```
 
-The serializer's `update` function is optional because it's only needed to resolve circular or duplicate references. If
-`stash` finds objects that are referenced more than once in the input, it sets placeholders for them in the form
+### Re-referenced objects
+
+If `stash` finds the same object more than once in the input, it replaces the repeat occurrences with placeholders:
 
 ```javascript
-{ $ref: "$.path.to.first.occurrence.of.object" }
+{ $ref: "$.path.to.first.occurrence" }
 ```
 
 When `unstash` encounters these, it deserializes any objects containing them in multiple stages:
 
-1. `value = load(data)` with these placeholders in `data` unresolved
-2. resolve the placeholders
-3. `update(value, resolvedData)` to update `value` in-place with the resolved data
+1. `object = load(data)`, with placeholders in the data
+2. `update(object, resolvedData)`, with placeholders resolved
 
-So you only need an `update` function if your object can contain other objects that might be re-referenced.
-Here's the built-in serializer for `Map`:
+So serializers for objects that can contain re-referenced objects must provide an `update` function that updates
+the `object` in place with the new `resolvedData`.
+
+Here's the built-in serializer for `Map`, for example:
 
 ```javascript
 {
@@ -252,8 +259,8 @@ To stash `line` successfully, define a serializer for it.
 import { addSerializer, stash, unstash } from "json-stash";
 
 addSerializer({
-  key: "Line",
   test: (obj) => obj.type === "Line",
+  key: "Line",
   save: (obj) => obj.mb(),
   load: ([m, b]) => makeLine(m, b),
 });
@@ -283,18 +290,19 @@ and `unstash` will convert `{ $type: key, data }` to `load(data)`.
 
 So `load(save(value))` should clone `value` if `test(value)` returns true. 
 
-`update` turns a value returned by `load` (which may contain placeholders for re-referenced objects) 
-into a clone of the original `value`. You can omit `update` if you know your `value` can never contain re-referenced objects. But if you're wrong and 
-`update` is missing when it's needed, `unstash` will throw a runtime error.
+The optional `update` function takes a value returned by `load`, which may contain placeholders for re-referenced objects, 
+and updates it with placeholder-resolved data. 
+You can omit `update` if you know your `value` will never contain re-referenced objects. 
+But if you're wrong about that and `update` is missing when it's needed, `unstash` will throw an error.
 
 <!-- TODO example of this error -->
 
-See [How it works](#how-it-works) for more details on the `stash`/`unstash` process.
+See [How it works](#how-it-works) for more details about the `stash`/`unstash` process.
 
 
 ## Classes
 
-`addClass` makes it easy to add serializers for classes.
+The `addClass` method simplifies defining serializers for classes.
 
 ```javascript
 import { addClasses, stash, unstash } from "json-stash";
@@ -326,7 +334,7 @@ unstashed.y(4);
 ```
 
 If the class's instances can't be cloned with `Object.assign(new K(), { ...obj })` you can provide
-custom `save` and `load` options.
+custom `save`, `load`, or `update` functions.
 
 ```javascript
 class Line {
@@ -341,7 +349,7 @@ addClass(Line, {
 });
 ```
 
-`save`, `load`, and `update` can be method names, in which they're converted to 
+`save`, `load`, and `update` can be method names, in which case they're converted to 
 
 - `save = (value) => value[save]()` 
 - `load = (data) => K[load](data)`
@@ -354,10 +362,10 @@ class Person {
   constructor(...friends) { this.#friends = friends }
   getFriends() { return [...this.#friends] }
   setFriends(friends) { this.#friends = [...friends] }
-  static fromData(friends) { return new Person(...friends) }
+  static withFriends(friends) { return new Person(...friends) }
 }
 
-addClass(Line, { save: "getData", load: "fromData", update: "setFriends" });
+addClass(Line, { save: "getFriends", load: "withFriends", update: "setFriends" });
 ```
 
 ### Defaults for `save`, `load`, and `update`
@@ -394,9 +402,8 @@ addClass(Line, { save: "getData" });
 ```
 
 If `save` is defined, there is no default `update` function.
-You can omit `update` if your class instances never contain other objects.
-If `update` is undefined but winds up being needed to resolve duplicate references, 
-`unstash` will throw an error.
+You can omit `update` if you're sure your class instances won't contain re-referenced objects,
+but if you're wrong and `update` winds up being needed, `unstash` will throw an error.
 
 See [How it works](#how-it-works) for more on when and how the `update` function is used.
 
