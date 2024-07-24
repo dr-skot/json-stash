@@ -7,11 +7,38 @@ import { classSerializer, ClassSerializerOpts } from "./classSerializer";
 
 type StashableClassSpec = Class | [Class, string | ClassSerializerOpts<any>];
 
-const groups: Record<string, StashableClassSpec[]> = {};
-
 interface StashableOptions extends Partial<ClassSerializerOpts<any>> {
   group?: string;
 }
+
+// @stashable is a decorator factory with a group property tacked onto it
+interface StashableDecorator {
+  (opts?: StashableOptions): ClassDecorator;
+  group: (groupName: string) => StashableClassSpec[];
+}
+
+const groups: Record<string, StashableClassSpec[]> = {};
+
+function rawStashable(opts: StashableOptions = {}) {
+  return function (target: any) {
+    if (opts.group) {
+      // if a group is specfied, add the class to the group
+      const group = groups[opts.group] || [];
+      target = [target, getKeyOrOpts(opts)];
+      groups[opts.group] = [...group, target];
+    } else {
+      // otherwize, just add the class to the stasher immediately
+      addSerializers(classSerializer(target, getKeyOrOpts(opts)));
+    }
+  };
+}
+
+rawStashable.group = (groupName: string) => groups[groupName] || [];
+
+// TODO is there a more elegant way to jump through this typescript hoop?
+//   We want ts to know stashable is a function with a .group property
+//   I don't know how to accomplish that without this rename-and-cast hack
+export const stashable = rawStashable as StashableDecorator;
 
 function getKeyOrOpts(opts: StashableOptions) {
   if (!opts.save) return opts.key;
@@ -22,27 +49,3 @@ function getKeyOrOpts(opts: StashableOptions) {
     update: opts.update,
   };
 }
-
-function rawStashable(opts: StashableOptions = {}) {
-  return function (target: any) {
-    if (opts.group) {
-      const group = groups[opts.group] || [];
-      target = [target, getKeyOrOpts(opts)];
-      groups[opts.group] = [...group, target];
-    } else {
-      addSerializers(classSerializer(target, getKeyOrOpts(opts)));
-    }
-  };
-}
-
-rawStashable.group = (groupName: string) => groups[groupName] || [];
-
-interface StashableDecorator {
-  (opts?: StashableOptions): ClassDecorator;
-  group: (groupName: string) => StashableClassSpec[];
-}
-
-// TODO is there a more elegant way to jump through this typescript hoop?
-//   We want ts to know stashable is a function with a .group property
-//   I don't know how to accomplish that without this rename-and-cast hack
-export const stashable = rawStashable as StashableDecorator;

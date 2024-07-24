@@ -4,12 +4,31 @@ import { Serializer } from "./types/Serializer";
 import { MethodNotFoundError } from "./errors/MethodNotFoundError";
 
 export interface ClassSerializerOpts<Type, Data = any> {
+  // $type key for the serialized object: `{ $type: key, data: ... }`
+  // defaults to the class name
   key?: string;
+
+  // returns the data for the serialized object: `{ $type: key, data: save(obj) }`
+  // if a string, `obj[save]()` will be used
+  // default is `{ ...obj }`
   save?: string | ((obj: Type) => Data);
+
+  // recreates the object from the data returned by save: `obj = load(data)`
+  // if a string, `Type[load](data)` will be used
+  // default if `save` is defined: `new Type(...data)`
+  //    (ie, `save` is assumed to return constructor args; if `data` is not an array, an error is thrown)
+  //    TODO: instead of throwing an error, assume single arg: `new Type(data)`
+  // default otherwise: `Object.assign(new Type(), data)`
   load?: string | ((data: Data) => Type);
+
+  // modifies an existing object to match data returned by save: `update(obj, data)`
+  // if a string, `obj[update](data)` will be used
+  // default if `save` is undefined: `Object.assign(obj, data)`
+  // otherwise an error is thrown (only if `update` is necessary to resolve circular/duplicate references)
   update?: string | ((obj: Type, data: Data) => void);
 }
 
+// for backwards compatibility, support the old signature with a string key as the second argument
 export function classSerializer<
   Instance extends Record<string, any>,
   Data = unknown,
