@@ -29,26 +29,28 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     load: (str) => BigInt(str),
   } as Serializer<bigint, string>,
 
-  /* TODO add AggregateError when we're sure it won't break anything,
-        since it's not supported in all environments
-  classSerializer(AggregateError, {
-    save: ({ name, message, stack, errors }) => ({
-      name,
-      message,
-      stack,
-      errors,
-    }),
-    load: ({ name, message, stack, errors }) => {
-      const error = new AggregateError(errors, message);
-      error.name = name;
-      error.stack = stack;
-      return error;
-    },
-  }) as Serializer<
-    AggregateError,
-    { name: string; message: string; stack?: string; errors: Error[] }
-  >,
-     */
+  // support AggregateError if it exists
+  ...(typeof AggregateError === "function"
+    ? [
+        classSerializer(AggregateError, {
+          save: ({ name, message, stack, errors }) => ({
+            name,
+            message,
+            stack,
+            errors,
+          }),
+          load: ({ name, message, stack, errors }) => {
+            const error = new AggregateError(errors, message);
+            error.name = name;
+            error.stack = stack;
+            return error;
+          },
+        }) as Serializer<
+          AggregateError,
+          { name: string; message: string; stack?: string; errors: Error[] }
+        >,
+      ]
+    : []),
 
   // put Error last so that we test against subclasses first
   ...[
@@ -62,16 +64,23 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
   ].map(
     (ErrorType) =>
       classSerializer(ErrorType, {
-        save: ({ name, message, stack }) => ({ name, message, stack }),
-        load: ({ name, message, stack }) => {
-          const error = new ErrorType(message);
+        save: (e) => ({
+          name: e.name,
+          message: e.message,
+          stack: e.stack,
+          // some TS hackery to support the cause property
+          cause: (e as any).cause,
+        }),
+        load: ({ name, message, stack, cause }) => {
+          // some TS hackery to support the cause property
+          const error = new (ErrorType as any)(message, { cause });
           error.name = name;
           error.stack = stack;
           return error;
         },
       }) as Serializer<
         Error,
-        { name: string; message: string; stack?: string }
+        { name: string; message: string; stack?: string; cause: unknown }
       >,
   ),
 

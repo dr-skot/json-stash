@@ -112,17 +112,34 @@ describe("stash", () => {
     });
   });
 
-  /* TODO resolve AggregateError and instate this test; AggregateError is not available here for some reason
+  it("serializes Error objects with cause", () => {
+    const cause = new Error("cause");
+    const input = catchError(new (Error as any)("test error", { cause }));
+    expect((input as any).cause).toBe(cause);
+    const output = unstash(stash(input));
+    expect(output).toBeInstanceOf(Error);
+    expect(output.name).toBe(input.name);
+    expect(output.message).toBe(input.message);
+    expect(output.stack).toBe(input.stack);
+    expect(output.cause).toEqual(cause);
+  });
+
+  // Intellij IDEA complains about unresolved type AggregateError,
+  //   but it's defined in the jsdom test environment
   it("serializes AggregateError objects", () => {
-    const input = catchError(new AggregateError([new Error("test error"), new RangeError("RangeError")], "aggregate error"));
+    const input = catchError(
+      new AggregateError(
+        [new Error("test error"), new RangeError("RangeError")],
+        "aggregate error",
+      ),
+    ) as AggregateError;
     const output = unstash(stash(input));
     expect(output).toBeInstanceOf(AggregateError);
     expect(output.name).toBe(input.name);
     expect(output.message).toBe(input.message);
     expect(output.stack).toBe(input.stack);
     expect(output.errors).toEqual(input.errors);
-  }
-  */
+  });
 
   it("serializes Map objects", () => {
     const input = new Map([
