@@ -1,6 +1,6 @@
 # json-stash
 
-Serialize anything. `JSON.stringify` [on steroids](#it's-like-json-stringify).
+Serialize anything. `JSON.stringify` on steroids.
 - handles circular and duplicate references
 - supports all your favorite built-in types: 
   `Date`, `RegExp`, `Map`, `Set`, `Error` and all its subclasses, all the `Array`s, `ArrayBuffer`,
