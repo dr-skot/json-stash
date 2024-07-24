@@ -3,11 +3,10 @@
 Serialize anything. `JSON.stringify` on steroids.
 - handles circular and duplicate references
 - supports all your favorite built-in types: 
-  `Date`, `Error`, `RegExp`, 
-  `Map`, `Set`, all the `Array`s, `ArrayBuffer`
+  `Date`, `RegExp`, `Map`, `Set`, `Error` and all its subclasses, all the `Array`s, `ArrayBuffer`,
   `BigInt`, `Infinity`, `NaN`, `Symbol`
 - handles class instances with public properties automatically
-- can be configured to handle just about anything else using custom serializers
+- can be configured to handle just about anything else using [custom serializers](#custom-serializers)
 
 1.4k when minified and gzipped. No dependencies.
 
@@ -44,7 +43,6 @@ const stashed = stasher.stash(anything);
 const unstashed = stasher.unstash(stashed);
 ```
 
-
 Simple classes with public fields just need to be added.
 
 ```javascript
@@ -57,42 +55,8 @@ unstash(stash(new Point(5, 6)));
 // Point { x: 5, y: 6 }
 ```
 
-For classes with private fields, supply `save` and `load` methods.
+Just about anything else can be supported by defining [custom serializers](#custom-serializers). 
 
-```javascript
-class ImmutablePoint { 
-    constructor(x,y) { this.#x = x; this.#y = y } 
-    xy() { return [this.#x, this.#y] }
-}
-
-addClass(ImmutablePoint, {
-  save: (point) => point.xy(), 
-  load: ([x, y]) => new ImmutablePoint(x, y) 
-})
-const stashed = stash(new ImmutablePoint(5, 6));
-// '{"$type":"ImmutablePoint","data":[5,6]}'
-const unstashed = unstash(stashed);
-// ImmutablePoint {}
-unstashed.xy();
-// [5, 6]
-```
-
-Just about anything else can be handled with a custom serializer.
-
-```typescript
-import { addSerializer } from 'json-stash'
-
-addSerializer({ 
-  key: "book", 
-  test: (obj) => obj?.title && obj?.text,
-  save: ({ title, text }) => { localStorage.setItem(title, text); return title },
-  load: (title) => ({ title, text: localStorage.getItem(title) })
-})
-const stashed = stash({ title: "Moby Dick", text: mobyDickText });
-// '{"$type":"book","data":"Moby Dick"}' -- with side effect of storing text in localStorage
-unstash(stashed);
-// { title: "Moby Dick", text: <text loaded from localStorage> }
-```
 
 ## It's like JSON.stringify
 
@@ -138,11 +102,6 @@ grover = { name: "Cleveland" };
 ben = { name: "Harrison" };
 presidents = { 22: grover, 23: ben, 24: grover };
 
-JSON.stringify(presidents);
-// '{"22":{"name":"Cleveland"},"23":{"name":"Harrison"},"24":{"name":"Cleveland"}}'
-stash(presidents);
-// '{"22":{"name":"Cleveland"},"23":{"name":"Harrison"},"24":{"$ref":"$.22"}}'
-
 unstringified = JSON.parse(JSON.stringify(presidents));
 unstringified[22] === unstringified[24];
 // false -- 22 and 24 are duplicates of each other
@@ -158,56 +117,122 @@ unstashed[22] === unstashed[24];
 
 ```javascript
 const landing = new Date("1969-07-21T02:56Z");
-JSON.stringify(landing);
-// '"1969-07-21T02:56:00.000Z"'
 JSON.parse(JSON.stringify(landing));
 // '1969-07-21T02:56:00.000Z' // string
-stash(landing);
-// '{"$type":"Date","data":"1969-07-21T02:56:00.000Z"}'
 unstash(stash(landing));
 // 1969-07-21T02:56:00.000Z // Date object
 
 const order = new Map([[1, "Armstrong"], [2, "Aldrin"]]);
-JSON.stringify(order);
-// '{}'
 JSON.parse(JSON.stringify(order));
 // {}
-stash(order);
-// '{"$type":"Map","data":[[1,"Armstrong"],[2,"Aldrin"]]}'
 unstash(stash(order));
 // Map(2) { 1 => 'Armstrong', 2 => 'Aldrin' }
 
 const steps = new Set(["small", "giant"]);
-JSON.stringify(steps);
-// '{}'
 JSON.parse(JSON.stringify(steps));
 // {}
-stash(steps);
-// '{"$type":"Set","data":["small","giant"]}'
 unstash(stash(steps));
 // Set(2) { 'small', 'giant' }
 
 const collect = /rock/g;
-JSON.stringify(collect);
-// '{}'
 JSON.parse(JSON.stringify(collect));
 // {}
-stash(collect);
-// '{"$type":"RegExp","data":["rock","g"]}'
 unstash(stash(collect));
 // /rock/g
 ```
 
-Supported out of the box are `Date`, `Error`, `RegExp`,
-`Map`, `Set`, all the `Array`s, `ArrayBuffer`,
+Supported out of the box are `Date`, `RegExp`,
+`Map`, `Set`, `Error` and all its subclasses, all the `Array`s, `ArrayBuffer`,
 `BigInt`, `Infinity`, `NaN`, and `Symbol`.
 
-Most other types can be supported using the `addClass` and `addSerializers` functions. 
+Most other types can be supported using the `addClass` and `addSerializer` functions. 
 See [User-defined types](#user-defined-types) for details.
 
-## User-defined types
+## How it works
 
-You can handle custom types by defining custom serializers for them. For example,
+`stash` converts non-`JSON.stringify`able values in its input to
+
+```javascript
+{ $type: key, data: data }
+```
+
+Where `data` is `JSON.stringify`able, or something that can in turn be `stash`ed.
+
+To do this, it maintains a library of serializers. Each serializer provides
+
+- a `test` function to identify values to use it on: `if (test(value))`, use this serializer to convert `value`
+- a `key` string and `save` function to produce the encoding: `{ $type: key, data: save(value) }`
+- `load` and (optional) `update` functions for converting the value back
+
+`unstash` reverses the process: when it encounters: `{ $type: key, data }`, it looks for a serializer
+in the library with a matching `key`, and uses its `load` function to recreate the original value:
+`value = load(data)`.
+
+Here's the built-in serializer for `RegExp`, for example:
+
+```javascript
+{
+    test: (value) => value instanceof RegExp,
+    key: "RegExp",
+    save: (regexp) => [regexp.source, regexp.flags],
+    load: ([source, flags]) => new RegExp(source, flags)
+}
+```
+
+and here it is in action:
+
+```javascript
+stash(/search/gi);
+// '{"$type":"RegExp","data":["search","gi"]}'
+unstash(stash(/search/gi));
+// /search/gi
+```
+
+The serializer's `update` function is optional because it's only needed to resolve circular or duplicate references. If
+`stash` finds objects that are referenced more than once in the input, it sets placeholders for them in the form
+
+```javascript
+{ $ref: "$.path.to.first.occurrence.of.object" }
+```
+
+When `unstash` encounters these, it deserializes any objects containing them in multiple stages:
+
+1. `value = load(data)` with these placeholders in `data` unresolved
+2. resolve the placeholders
+3. `update(value, resolvedData)` to update `value` in-place with the resolved data
+
+So you only need an `update` function if your object can contain other objects that might be re-referenced.
+Here's the built-in serializer for `Map`:
+
+```javascript
+{
+  test: (value) => value instanceof Map,
+  key: "Map",
+  save: (map) => [...map],
+  load: (entries) => new Map(entries),
+  update: (map, entries) => {
+    entries.forEach(([key, value]) => map.set(key, value));
+  }
+}
+```
+
+and here it is in action, with a circular reference:
+
+```javascript
+const loner = new Map();
+loner.set("friend", loner);
+stash(loner);
+// '{"$type":"Map","data":[["friend",{"$ref":"$"}]]}'
+const unstashedLoner = unstash(stash(loner));
+// <ref *1> Map(1) { 'friend' => [Circular *1] }
+unstashedLoner.get("friend").get("friend") === unstashedLoner;
+// true
+```
+
+
+## Custom serializers
+
+You can add custom serializers to handle your own types. For example,
 let's say you have a datatype that represents a linear equation:
 
 ```typescript
@@ -221,7 +246,7 @@ const line = makeLine(2, 3);
 line.y(4); // 11
 ```
 
-To stash this successfully, add a serializer for it.
+To stash `line` successfully, define a serializer for it.
 
 ```javascript
 import { addSerializer, stash, unstash } from "json-stash";
@@ -241,78 +266,35 @@ unstash(stashed).y(4);
 
 ### Serializers
 
-A serializer has this signature:
+A serializer has this TypeScript signature:
 
 ```typescript
-interface Serializer<Type, Data> {
+interface Serializer<Type = any, Data = any> {
+  test: (value: unknown) => boolean;
   key: string;
-  test: (obj: unknown) => boolean;
-  save: (obj: Type) => Data;
+  save: (value: Type) => Data;
   load: (data: Data) => Type;
-  update?: (obj: Type, data: Data) => void;
+  update?: (value: Type, data: Data) => void;
 }
 ```
 
-When `stash` encounters an object `x` and finds a serializer for which `serialzier.test(x)` returns `true`, it converts `x` to
+If `test(value)` returns true, `stash` will convert `value` to `{ $type: key, data: save(value) }`
+and `unstash` will convert `{ $type: key, data }` to `load(data)`.
 
-```javascript
-{ $type: serializer.key, data: serializer.save(x) }
-```
+So `load(save(value))` should clone `value` if `test(value)` returns true. 
 
-When `unstash` encounters this and finds a serializer with a matching `key`, it recreates the object with `serializer.load(data)`.
+`update` turns a value returned by `load` (which may contain placeholders for re-referenced objects) 
+into a clone of the original `value`. You can omit `update` if you know your `value` can never contain re-referenced objects. But if you're wrong and 
+`update` is missing when it's needed, `unstash` will throw a runtime error.
 
-The `update` function is only necessary if your object can contain other objects. It's used to resolve circular and duplicate references. 
-When `unstash` finds re-referenced objects, it uses a two-phase method for deserialization:
+<!-- TODO example of this error -->
 
-- phase 1: calls `load` with data that contains placeholders for re-referenced objects
-- phase 2: calls `update` with the object returned by `load` and new data with placeholders resolved; `update` must mutate the object in place
+See [How it works](#how-it-works) for more details on the `stash`/`unstash` process.
 
-```javascript
-function makePerson(friends) {
-  friends = [...friends];
-  return {
-    type: "Person",
-    getFriends: () => [...friends],
-    setFriends: (newFriends) => (friends = [...newFriends]),
-  };
-}
-
-addSerializers({
-  key: "Person",
-  test: (obj) => obj.type === "Person",
-  save: (person) => person.getFriends(),
-  load: (friends) => makePerson(friends),
-  update: (person, friends) => person.setFriends(friends),
-});
-
-const loner = makePerson([]);
-loner.setFriends([loner]);
-
-const unstashedLoner = unstash(stash(loner));
-unstashedLoner.getFriends() === [unstashedLoner];
-// true
-```
-
-If `unstash` finds re-referenced objects and no `update` method has been provided, it will throw a runtime error.
-
-```javascript
-addSerializers({
-  key: "Person",
-  test: (obj) => obj.type === "Person",
-  save: (person) => person.getFriends(),
-  load: (friends) => makePerson(friends),
-});
-
-const loner = makePerson([]);
-loner.setFriends([loner]);
-
-const unstashedLoner = unstash(stash(loner));
-// throws Error: "json-stash: Second pass required while unstashing but no update method found for Person"
-```
 
 ## Classes
 
-Use `addClass` to make a class stashable.
+`addClass` makes it easy to add serializers for classes.
 
 ```javascript
 import { addClasses, stash, unstash } from "json-stash";
@@ -331,23 +313,20 @@ unstashed.y(4);
 // 11
 ```
 
-`addClass(K)` is sufficient for simple classes with public fields. It creates a serializer that looks like this:
+`addClass(K)` is all you need for simple classes with public properties. It generates a serializer like this:
 
 ```javascript
 {
+  test: (value) => value instanceof K,
   key: K.name,
-  test: (obj) => obj instanceof K,
-  save: (obj) => ({ ...obj }),
+  save: (value) => ({ ...value }),
   load: (data) => Object.assign(new K(), data),
-  update: (obj, data) => Object.assign(obj, data),
+  update: (value, data) => Object.assign(value, data),
 }
 ```
 
-### `addClass` options: `save`, `load`
-
-In cases where an `obj` of class `K` can't be cloned with `Object.assign(new K(), { ...obj })` 
-(because the class has private fields, for example, or the constructor can't be called without arguments),
-you can provide custom `save` and `load` options.
+If the class's instances can't be cloned with `Object.assign(new K(), { ...obj })` you can provide
+custom `save` and `load` options.
 
 ```javascript
 class Line {
@@ -360,29 +339,49 @@ addClass(Line, {
   save: (obj) => obj.getData(), 
   load: ({ m, b }) => new Line(m, b)
 });
-
-const stashed = stash(new Line(2, 3));
-// '{"$type":"Line","data":{"m":2,"b":3}}'
-unstash(stashed).y(4);
-// 11
 ```
 
-Strings are interpreted as method names. For `obj` of class `K`, `save: "method"` is 
-equivalent to `save: (obj) => obj.method()`, and `load: "method"` is equivalent to `load: (data) => K.method(data)`. 
+`save`, `load`, and `update` can be method names, in which they're converted to 
+
+- `save = (value) => value[save]()` 
+- `load = (data) => K[load](data)`
+- `update = (value, data) => value[update](data)`
+
 Note that the `load` method must be static.
 
 ```javascript
-class Line {
-  constructor(m, b) { this.#m = m; this.#b = b }
-  y(x) { return this.#m * x + this.#b }
-  getData() { return { m: this.#m, b: this.#b } }
-  static fromData({ m, b }) { return new Line(m, b) }
+class Person {
+  constructor(...friends) { this.#friends = friends }
+  getFriends() { return [...this.#friends] }
+  setFriends(friends) { this.#friends = [...friends] }
+  static fromData(friends) { return new Person(...friends) }
 }
 
-addClass(Line, { save: "getData", load: "fromData" });
+addClass(Line, { save: "getData", load: "fromData", update: "setFriends" });
 ```
 
-If `save` returns an array of constructor arguments, you can omit `load`, because it defaults to `new <Class>(...data)`.
+### Defaults for `save`, `load`, and `update`
+
+If `save` is not defined, the defaults are as mentioned above:
+
+```javascript
+{
+  save: (value) => ({ ...value }),
+  load: (data) => Object.assign(new K(), data),
+  update: (value, data) => Object.assign(value, data),
+}
+```
+
+If `save` is defined, the defaults for `load` and `update` are
+
+```javascript
+{
+  load: (data) => new K(...data),
+  update: undefined,
+}
+```
+
+In other words, `save` is assumed to return an array of constructor arguments.
 
 ```javascript
 class Line {
@@ -394,39 +393,17 @@ class Line {
 addClass(Line, { save: "getData" });
 ```
 
-### `addClass` options: `update`
+If `save` is defined, there is no default `update` function.
+You can omit `update` if your class instances never contain other objects.
+If `update` is undefined but winds up being needed to resolve duplicate references, 
+`unstash` will throw an error.
 
-If you supply a custom `save` function, there is no default `update` function.
-You can omit `update` if your class doesn't contain other objects. Otherwise you must provide it, 
-or risk runtime errors with input that contains circular or duplicate references.
+See [How it works](#how-it-works) for more on when and how the `update` function is used.
 
-```javascript
-class Person {
-  #friends = [];
-  constructor(...friends) { this.setFriends(friends) }
-  getFriends() { return [...this.#friends] }
-  setFriends(friends) { this.#friends = [...friends] }
-}
+### Custom `key`
 
-const loner = new Person();
-loner.setFriends([loner]);
-
-// without `update`
-addClass(Person, { save: "getFriends" });
-unstash(stash(loner));
-// throws Error: json-stash: Second pass required while unstashing but no update method found for Person
-
-// with `update`
-addClass(Person, { save: "getFriends", update: "setFriends" });
-const unstashedLoner = unstash(stash(loner));
-unstashedLoner.getFriends() === [unstashedLoner];
-// true
-```
-
-### `addClass` options: `key`
-
-By default, `addClass` uses `<class>.name` as the `$type` key. If you have two classes with the same `<class>.name`
-(because they come from different packages, for example), give them distinct keys.
+By default, `addClass(K)` uses `K.name` as the `$type` key. If you have classes with the same name
+from different modules, be sure to give them distinct serializer keys.
 
 ```javascript
 import { Agent as MI5Agent } from 'mi5';
@@ -445,7 +422,7 @@ stash(new CIAAgent("Ethan", "Hunt"));
 // '{"$type":"CIAAgent","data":{"first":"Ethan","last":"Hunt"}}'
 ```
 
-### `addClass` options: summary
+### Summary of `addClass` options
 
 ```typescript
 interface AddClassOptions<K, Data> = {
@@ -476,49 +453,59 @@ interface AddClassOptions<K, Data> = {
 ```
 ### Class decorator
 
-For convenience, `json-stash` provides a TypeScript class decorator `@stashable` as an alternative to `addClasses`.
-`@stashable(opts) class X {}` is equivalent to `class X {}; addClasses(X, opts)`
-(unless you use the `group` option to defer adding—see [Playing well with others](#playing-well-with-others) for details).
+For convenience, the TypeScript decorator `@stashable` provides an alternative to `addClasses`.
 
 ```javascript
-import { stashable } from "json-stash";
+@stashable(opts) 
+class X {}
+``` 
 
-// for public-field classes no arguments are necessary
-@stashable()
-class Person {
-  constructor(first, last) {
-    this.first = first;
-    this.last = last;
-  }
-}
+is equivalent to 
 
-// provide unique keys to differentiate classes with the same name
-// CIA module
-@stashable({ key: "CIAAgent" })
-class Agent {...}
-// MI5 module
-@stashable({ key: "MI5Agent" })
-class Agent {...}
+```javascript
+class X {}
 
-// for private field classes, provide a `save` function
-// and, if needed, `load` and `update` functions
-@stashable({ save: "getFriends", update: "setFriends" })
-class Person {
-  constructor(...friends) { this.setFriends(friends) }
-  getFriends() { return [...this.#friends] }
-  setFriends(friends) { this.#friends = [...friends] }
-}
+// ... and later
+addClass(K, opts)`
 ```
+
+Unless you use the `group` option, in which case adding is deferred:
+
+```javascript
+@stashable({ group: "A" })
+class X {}
+
+@stashable({ group: "A", opts })
+class Y {}
+
+// ... and later
+stasher = getStasher();
+stasher.addClasses(...stashable.group("A"))
+```
+
+is equivalent to
+
+```javascript
+class X {}
+class Y {}
+
+// ... and later
+stasher = getStasher();
+addClass(X)
+addClass(Y, opts);
+```
+
+See [Playing well with others](#playing-well-with-others) for more on using the `group` option and `getStasher()`.
 
 `@stashable` should work under both of TypeScript’s decorator regimes—the stage 3 decorators introduced in TypeScript 5.0 or the still supported `--experimentalDecorators`.
 
 
 ## Playing well with others
 
-The above examples add serializers/classes to the global stasher.
+The above examples add serializers to the global stasher.
 This might be what you want in a small project, but if you're working on something bigger and need to 
-avoid collisions with other `json-stash` users,
-you can create your own stasher instance and add serializers/classes to that.
+avoid collisions with other `json-stash` clients,
+you can create your own stasher instance and add serializers to that.
 
 ```javascript
 import { getStasher } from "json-stash";
@@ -565,7 +552,7 @@ class Employee {}
 
 The output of `stash` is what you'd expect from `JSON.stringify`, with these enhancements:
 
-Re-referenced objects are rendered as `{ $ref: "$.path.to.object" }`.
+Re-referenced objects are rendered as `{ $ref: "$.path.to.first.occurrence.of.object" }`.
 
 ```javascript
 egoist = {};
@@ -583,22 +570,12 @@ stash(/search/gi);
 // '{"$type":"RegExp","data":["search","gi"]}'
 ```
 
-Each supported type has a serializer that defines how the `data` is saved and restored.
-See [Serializers](#serializers) for details. The serializer for `RegExp` is
-
-```javascript
-{
-  key: "RegExp",
-  test: (value) => value instanceof RegExp,
-  save: (value) => [value.source, values.flags],
-  load: ([source, flags]) => new RegExp(source, flags),
-}
-```
+Serializers define how the `data` is saved and restored. See [How it works](#how-it-works) for details.
 
 ### Escaping special properties
 
-In the unlikely event that your original input contains `$ref` or `$type` properties, `stash` avoids choking on them by prepending an `$`,
-which `unstash` duly removes.
+In the unlikely event that your original input contains `$ref` or `$type` properties, `stash` avoids ambiguity 
+by prepending a `$`, which `unstash` removes.
 
 ```javascript
 x = { $ref: "not a real ref" };
@@ -623,6 +600,17 @@ unstash(stash(x));
 ```
 
 ## More about serializers
+
+### Just-this-time serializers
+
+`stash` and `unstash` take an optional second parameter: an array of serializers.
+These will be used for the current operation only, not added to the stasher's
+serializer library. Don't forget to `unstash` with the same serializers you used to `stash`!
+
+```javascript
+const stashed = stash(something, [unsharedSerializer]);
+const unstashed = unstash(stashed, [unsharedSerializer]);
+```
 
 ### Serializer overriding
 
@@ -657,19 +645,8 @@ Only serializers added with `addSerializers` can be removed.
 You can't remove the built-in serializers (`Date`, etc). But you can override them 
 by adding your own serializers for the same types.
 
-### Just-this-time serializers
-
-`stash` and `unstash` take an optional second parameter: an array of serializers.
-These will be used for the current operation only, not added to the stasher's
-serializer registry. Don't forget to `unstash` with the same serializers you used to `stash`!
-
-```javascript
-const stashed = stash(something, [unsharedSerializer]);
-const unstashed = unstash(stashed, [unsharedSerializer]);
-```
-
 ## Todo
 
-- Log helpful messages when errors happen
-- Do typescript better
+- Better error handling
 - Add a changelog
+

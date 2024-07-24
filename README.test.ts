@@ -110,6 +110,17 @@ describe("README", () => {
     expect(result).toEqual({ title: "Moby Dick", text: mobyDickText });
   });
 
+  test("Here's the built-in serializer for Map: ... and here it is in action, with circular references:", () => {
+    const loner = new Map();
+    loner.set("friend", loner);
+    expect(stash(loner)).toBe(
+      '{"$type":"Map","data":[["friend",{"$ref":"$"}]]}',
+    );
+    const unstashedLoner = unstash(stash(loner));
+    console.log(unstashedLoner);
+    expect(unstashedLoner.get("friend").get("friend")).toBe(unstashedLoner);
+  });
+
   test("It's like JSON.stringify", () => {
     const dude = { name: "Dude", heads: 1, legs: ["left", "right"] };
     expect(stash(dude)).toEqual(JSON.stringify(dude));
