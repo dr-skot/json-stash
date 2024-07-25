@@ -8,7 +8,7 @@ Serialize anything. `JSON.stringify` on steroids.
 - handles class instances with public properties automatically
 - can be configured to handle just about anything else using [custom serializers](#custom-serializers)
 
-1.4k when minified and gzipped. No dependencies.
+3.6k minified and gzipped. No dependencies.
 
 
 ## Installation
