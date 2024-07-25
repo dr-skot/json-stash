@@ -161,7 +161,7 @@ Where `data` is `JSON.stringify`able, or something that can in turn be `stash`ed
 To do this, it maintains a library of _serializers_ for the datatypes it supports. Each serializer provides 
  
 - a `test` function to identify instances of the datatype
-- `save` and `load` functions, such that `load(save(value))` returns a copy of `value`.
+- `save` and `load` functions, such that `save(value)` is stashable and `load(save(value))` is a clone of `value`.
 - a string `key` to identify this serializer
 
 When `stash` encounters a value, it searches its library for a serializer for which `serializer.test(value) === true`,
@@ -171,7 +171,7 @@ if it finds one, it converts `value` to
 { $type: serializer.key, data: serialzier.save(value) }
 ```
 
-When `unstash` encounters this, it looks up serializer with that `key` and calls `serializer.load(data)` to recreate the original value.
+When `unstash` encounters this, it looks up the serializer with that `key` and calls `serializer.load(data)` to recreate the original value.
 
 Here's the built-in serializer for `RegExp`, for example:
 
@@ -652,8 +652,11 @@ Only serializers added with `addSerializers` can be removed.
 You can't remove the built-in serializers (`Date`, etc). But you can override them 
 by adding your own serializers for the same types.
 
+## Changelog
+
+Full [release history](https://github.com/dr-skot/json-stash/releases) on github.
+
 ## Todo
 
-- Better error handling
-- Add a changelog
+- More options for how to handle serialization/deserialization errors
 
