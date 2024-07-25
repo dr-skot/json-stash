@@ -123,7 +123,8 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
   {
     key: "number",
     test: (x) => specialNums.includes(x as number),
-    save: (x) => specialNumNames[specialNums.indexOf(x)],
+    // have to use Object.is here because indexOf doesn't match NaN
+    save: (x) => specialNumNames[specialNums.findIndex((n) => Object.is(n, x))],
     load: (x) => specialNums[specialNumNames.indexOf(x)],
   } as Serializer<number, string>,
 
