@@ -1,41 +1,33 @@
 import { stash, unstash } from "./stash";
 import { DEFAULT_SERIALIZERS } from "./serializers";
-import { LegacySerializer } from "./types/LegacySerializer";
 import { Class } from "./types/Class";
 import { classSerializer, ClassSerializerOpts } from "./classSerializer";
 import { Serializer } from "./types/Serializer";
-import { getKey, normalizeSerializer } from "./normalizeSerializer";
 
 // a stasher can `stash` and `unstash` objects, using the default serializers
 // plus any additional serializers added to with `addSerializers`
 export function getStasher() {
   let addedSerializers: Serializer[] = [];
 
+  function combineSerializers(serializers: Serializer[] = []) {
+    return [...serializers, ...addedSerializers, ...DEFAULT_SERIALIZERS];
+  }
+
   const methods = {
-    stash: (data: unknown, serializers: LegacySerializer[] = []) => {
-      const allSerializers = [
-        ...serializers.map(normalizeSerializer),
-        ...addedSerializers,
-        ...DEFAULT_SERIALIZERS,
-      ] as Serializer[];
-      return stash(data, allSerializers);
+    stash: (data: unknown, serializers?: Serializer[]) => {
+      return stash(data, combineSerializers(serializers));
     },
 
-    unstash: (json: string, serializers: LegacySerializer[] = []) => {
-      const allSerializers = [
-        ...serializers.map(normalizeSerializer),
-        ...addedSerializers,
-        ...DEFAULT_SERIALIZERS,
-      ] as Serializer[];
-      return unstash(json, allSerializers);
+    unstash: (json: string, serializers?: Serializer[]) => {
+      return unstash(json, combineSerializers(serializers));
     },
 
-    addSerializers(...serializers: LegacySerializer[]) {
-      addedSerializers.splice(0, 0, ...serializers.map(normalizeSerializer));
+    addSerializers(...serializers: Serializer[]) {
+      addedSerializers.splice(0, 0, ...serializers);
     },
 
-    addSerializer(serializer: LegacySerializer) {
-      addedSerializers.unshift(normalizeSerializer(serializer));
+    addSerializer(serializer: Serializer) {
+      addedSerializers.unshift(serializer);
     },
 
     addClass<T extends Instance>(
@@ -56,7 +48,7 @@ export function getStasher() {
 
     removeSerializers(...keys: string[]) {
       keys.forEach((key) => {
-        const index = addedSerializers.findIndex((s) => getKey(s) === key);
+        const index = addedSerializers.findIndex((s) => s.key === key);
         if (index !== -1) addedSerializers.splice(index, 1);
       });
     },

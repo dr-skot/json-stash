@@ -4,8 +4,9 @@ import {
   addSerializers,
   clearSerializers,
   getStasher,
-  type LegacySerializer,
 } from "./index";
+import { Serializer } from "./types/Serializer";
+import { classSerializer } from "./classSerializer";
 
 describe("stash", () => {
   beforeEach(() => {
@@ -253,8 +254,8 @@ describe("stash", () => {
       }
     }
 
-    const moonGuySerializer: LegacySerializer<MoonGuy, [string, number]> = {
-      type: MoonGuy,
+    const moonGuySerializer: Serializer<MoonGuy, [string, number]> = {
+      test: (x) => x instanceof MoonGuy,
       key: "MoonGuy",
       save: (guy: MoonGuy) => [guy.name, guy.order],
       load: ([name, order]: [string, number]) => new MoonGuy(name, order),
@@ -281,8 +282,7 @@ describe("stash", () => {
     }
     const moonGuySerializer = {
       key: "MoonGuy",
-      type: Object,
-      test: (obj: MoonGuy) => obj.type === "MoonGuy",
+      test: (obj: unknown) => (obj as MoonGuy).type === "MoonGuy",
       save: (guy: MoonGuy) => [guy.name, guy.order],
       load: ([name, order]: [string, number]) => makeMoonGuy(name, order),
     };
@@ -403,8 +403,9 @@ describe("addSerializers", () => {
       }
     }
 
-    const agentSerializer: LegacySerializer<Agent, [string, string]> = {
-      type: Agent,
+    const agentSerializer: Serializer<Agent, [string, string]> = {
+      test: (x) => x instanceof Agent,
+      key: "Agent",
       save: (agent) => [agent.first, agent.last],
       load: ([first, last]) => new Agent(first, last),
     };
@@ -430,7 +431,8 @@ describe("stashers", () => {
     const stasher1 = getStasher();
     const stasher2 = getStasher();
     stasher2.addSerializers({
-      type: Date,
+      test: (x) => x instanceof Date,
+      key: "Date",
       save: () => "not supported",
       load: () => new Date(),
     });
@@ -468,7 +470,7 @@ describe("identical objects", () => {
         this.#regex1 = regex1;
         this.#regex2 = regex2;
       }
-      serialize() {
+      serialize(): [RegExp, RegExp] {
         return [this.#regex1, this.#regex2];
       }
       set(regex1: RegExp, regex2: RegExp) {
@@ -477,14 +479,13 @@ describe("identical objects", () => {
       }
     }
     const input = [new RegExPair(a, b), new RegExPair(a, c)];
-    addSerializers({
-      type: RegExPair,
-      save: (x: RegExPair) => x.serialize(),
-      load: ([r1, r2]: [RegExp, RegExp], existing = new RegExPair(r1, r2)) => {
-        existing.set(r1, r2);
-        return existing;
-      },
-    });
+    addSerializers(
+      classSerializer(RegExPair, {
+        save: (x: RegExPair) => x.serialize(),
+        load: ([r1, r2]: [RegExp, RegExp]) => new RegExPair(r1, r2),
+        update: (obj: RegExPair, [r1, r2]: [RegExp, RegExp]) => obj.set(r1, r2),
+      }),
+    );
     const output = unstash(stash(input));
     expect(output[0].serialize()).toEqual(input[0].serialize());
     expect(output[1].serialize()).toEqual(input[1].serialize());
@@ -530,14 +531,10 @@ describe("identical objects", () => {
 
     addSerializers({
       key: "Queue",
-      type: Object,
-      test: (obj) => obj.isQueue,
+      test: (obj) => (obj as Queue).isQueue,
       save: (queue: Queue) => queue.save(),
-      load: (data: any[], existing?: Queue) => {
-        if (!existing) return getQueue(data);
-        existing.set(data);
-        return existing;
-      },
+      load: (data: any[]) => getQueue(data),
+      update: (existing: Queue, data: any[]) => existing.set(data),
     });
 
     const q = getQueue([]);

@@ -102,6 +102,7 @@ describe("stashable group", () => {
   });
   it("can be added to a stasher", () => {
     const stasher = getStasher();
+    console.log(...(stashable as any).group("Scoped"));
     stasher.addClasses(...(stashable as any).group("Scoped"));
     const unstashed = stasher.unstash(stasher.stash(new ScopedClass("Alice")));
     expect(unstashed instanceof ScopedClass).toBe(true);

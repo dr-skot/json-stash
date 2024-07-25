@@ -19,7 +19,8 @@ describe("https://stackoverflow.com/questions/8164802/serialize-javascript-objec
     const myobject = new MyClass1("5678999", "text");
 
     const serializer = {
-      type: MyClass1,
+      test: (obj) => obj instanceof MyClass1,
+      key: "MyClass1",
       save: (obj) => [obj.id, obj.member],
       load: (data) => new MyClass1(...data),
     };
@@ -48,7 +49,7 @@ describe("https://stackoverflow.com/questions/11616630/how-can-i-print-a-circula
 
     const stashed = stash(nodes);
     expect(stashed).toBe(
-      '[{"self":{"$ref":"$.0"},"siblings":{"$ref":"$"}},{"self":{"$ref":"$.1"},"siblings":{"$ref":"$"}}]'
+      '[{"self":{"$ref":"$.0"},"siblings":{"$ref":"$"}},{"self":{"$ref":"$.1"},"siblings":{"$ref":"$"}}]',
     );
     expect(unstash(stashed)).toEqual(nodes);
   });
@@ -65,7 +66,8 @@ describe("https://stackoverflow.com/questions/6487699/best-way-to-serialize-unse
 
     // add a serializer
     const serializer = {
-      type: Person,
+      test: (obj) => obj instanceof Person,
+      key: "Person",
       save: (p) => [p.age],
       load: (data) => new Person(...data),
     };
@@ -91,7 +93,8 @@ describe("https://stackoverflow.com/questions/6487699/best-way-to-serialize-unse
 
     // add a serializer
     const serializer = {
-      type: Person,
+      test: (obj) => obj instanceof Person,
+      key: "Person",
       save: (p) => [p.age],
       load: (data) => new Person(...data),
     };

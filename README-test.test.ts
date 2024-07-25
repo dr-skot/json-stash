@@ -12,6 +12,10 @@ import { Agent as CIAAgent } from "./test/README.test.cia";
 
 import { stashable } from "./src/stashable";
 
+// IMPORTANT: this file should be named README-test.test.ts
+//   or anything that's not README.*
+//   so it doesn't get included in the npm package
+
 describe("README", () => {
   beforeEach(() => clearSerializers());
 
@@ -203,7 +207,7 @@ describe("README", () => {
 
     addSerializer({
       key: "Line",
-      test: (obj) => obj.type === "Line",
+      test: (obj) => (obj as any).type === "Line",
       save: (obj) => obj.mb(),
       load: ([m, b]) => makeLine(m, b),
     });
