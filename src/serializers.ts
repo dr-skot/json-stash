@@ -2,6 +2,9 @@ import { getOwnKeys, hasSymbolKeys, isPlainObject } from "./utils";
 import { classSerializer } from "./classSerializer";
 import { Serializer } from "./types/Serializer";
 
+const specialNums = [Infinity, -Infinity, NaN];
+const specialNumNames = ["Infinity", "-Infinity", "NaN"];
+
 export const DEFAULT_SERIALIZERS: Serializer[] = [
   classSerializer(Date, {
     save: (date) => date.toISOString(),
@@ -52,7 +55,7 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
       ]
     : []),
 
-  // put Error last so that we test against subclasses first
+  // Error and its subclasses
   ...[
     EvalError,
     RangeError,
@@ -60,6 +63,7 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     SyntaxError,
     TypeError,
     URIError,
+    // put Error last so test will match subclasses first
     Error,
   ].map(
     (ErrorType) =>
@@ -115,21 +119,12 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     load: (str) => new URL(str),
   }) as Serializer<URL, string>,
 
+  // Infinity, -Infinity, NaN
   {
     key: "number",
-    test: (x) => [Infinity, -Infinity, NaN].includes(x as number),
-    save: (x) =>
-      ({
-        [Infinity]: "Infinity",
-        [-Infinity]: "-Infinity",
-        [NaN]: "NaN",
-      })[x],
-    load: (x) =>
-      ({
-        Infinity: Infinity,
-        "-Infinity": -Infinity,
-        NaN: NaN,
-      })[x],
+    test: (x) => specialNums.includes(x as number),
+    save: (x) => specialNumNames[specialNums.indexOf(x)],
+    load: (x) => specialNums[specialNumNames.indexOf(x)],
   } as Serializer<number, string>,
 
   classSerializer(ArrayBuffer, {
@@ -137,6 +132,7 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     load: (data) => new Uint8Array(data).buffer,
   }) as Serializer<ArrayBuffer, number[]>,
 
+  // Typed arrays
   ...[
     Int8Array,
     Uint8Array,
@@ -151,7 +147,8 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     BigUint64Array,
   ].map((type) =>
     classSerializer(type, {
-      // TODO can we properly type these anys?
+      // these `any`s could be eliminated by handling the bigint arrays separately,
+      // but it's not worth the extra code
       save: (array: any) => Array.from(array),
       load: (data: any[]) => new type(data),
     }),

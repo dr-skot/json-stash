@@ -1,51 +1,31 @@
+import { classSerializer, ClassSerializerOpts } from "./classSerializer";
+import { Serializer } from "./types/Serializer";
 import { addSerializers } from "./index";
 
-import { Class } from "./types/Class";
-import { classSerializer, ClassSerializerOpts } from "./classSerializer";
-
-// TODO properly type this; remove all "any"s
-
-type StashableClassSpec = Class | [Class, string | ClassSerializerOpts<any>];
-
-interface StashableOptions extends Partial<ClassSerializerOpts<any>> {
+// @stashable takes all the `addClass` options, plus a possible `group`
+interface StashableOpts extends ClassSerializerOpts<any> {
   group?: string;
 }
 
-// @stashable is a decorator factory with a group property tacked onto it
+// @stashable is a class decorator factory, with a `group()` method tacked onto it
 interface StashableDecorator {
-  (opts?: StashableOptions): ClassDecorator;
-  group: (groupName: string) => StashableClassSpec[];
+  (opts?: StashableOpts): ClassDecorator;
+  group: (groupName: string) => Serializer[];
 }
 
-const groups: Record<string, StashableClassSpec[]> = {};
+// store groups of serializers
+const groups: Record<string, Serializer[]> = {};
 
-function rawStashable(opts: StashableOptions = {}) {
+// "raw" because we'll have to rename it to cast as StashableDecorator before exporting
+function rawStashable({ group, ...opts }: StashableOpts = {}) {
   return function (target: any) {
-    if (opts.group) {
-      // if a group is specfied, add the class to the group
-      const group = groups[opts.group] || [];
-      target = [target, getKeyOrOpts(opts)];
-      groups[opts.group] = [...group, target];
-    } else {
-      // otherwize, just add the class to the stasher immediately
-      addSerializers(classSerializer(target, getKeyOrOpts(opts)));
-    }
+    const serializer = classSerializer(target, opts);
+    // add the serializer to the group, or to the global stasher if no group is specified
+    if (group) groups[group] = [...(groups[group] || []), serializer];
+    else addSerializers(serializer);
   };
 }
 
-rawStashable.group = (groupName: string) => groups[groupName] || [];
+rawStashable.group = (groupName: string) => [...groups[groupName]] || [];
 
-// TODO is there a more elegant way to jump through this typescript hoop?
-//   We want ts to know stashable is a function with a .group property
-//   I don't know how to accomplish that without this rename-and-cast hack
 export const stashable = rawStashable as StashableDecorator;
-
-function getKeyOrOpts(opts: StashableOptions) {
-  if (!opts.save) return opts.key;
-  return {
-    key: opts.key,
-    save: opts.save,
-    load: opts.load,
-    update: opts.update,
-  };
-}
