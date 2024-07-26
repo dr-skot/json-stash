@@ -1,6 +1,5 @@
 import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
 import { Serializer } from "./types/Serializer";
-import { NoUpdateMethodError } from "./errors/NoUpdateMethodError";
 
 // a stashed object that needs to be deserialized looks like this
 type Deserializable = {
@@ -65,5 +64,6 @@ export function reload(
 
   // value will be mutated in place
   if (serializer.update) serializer.update(value, data);
-  else throw new NoUpdateMethodError(serializer.key);
+  else
+    throw new Error(`json-stash: No update method found for ${serializer.key}`);
 }

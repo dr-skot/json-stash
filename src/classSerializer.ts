@@ -1,7 +1,6 @@
 import { Class } from "./types/Class";
 import { isFunction } from "./utils";
 import { Serializer } from "./types/Serializer";
-import { MethodNotFoundError } from "./errors/MethodNotFoundError";
 
 export interface ClassSerializerOpts<Type, Data = any> {
   // $type key for the serialized object: `{ $type: key, data: ... }`
@@ -61,22 +60,25 @@ export function classSerializer<
       typeof save === "string"
         ? (obj: Instance): Data => {
             if (isFunction(obj[save])) return obj[save](obj);
-            throw new MethodNotFoundError(type.name, save, "save");
+            throw methodNotFound(type.name, save, "save");
           }
         : save,
     load:
       typeof load === "string"
         ? (data: Data): Instance => {
             if (isFunction(statics[load])) return statics[load](data);
-            throw new MethodNotFoundError(type.name, load, "load");
+            throw methodNotFound(type.name, load, "load");
           }
         : load,
     update:
       typeof update === "string"
         ? (obj: Instance, data: Data) => {
             if (isFunction(obj[update])) obj[update](data);
-            else throw new MethodNotFoundError(type.name, update, "update");
+            else throw methodNotFound(type.name, update, "update");
           }
         : update,
   };
 }
+
+const methodNotFound = (type: string, method: string, category: string) =>
+  new Error(`json-stash: ${category} method "${method}" not found on ${type}`);
