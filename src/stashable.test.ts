@@ -1,5 +1,4 @@
-import { stashable } from "./stashable";
-import { getStasher, stash, unstash } from "./index";
+import { getStasher, stash, unstash, stashable } from "./index";
 
 @stashable()
 class PublicClass {

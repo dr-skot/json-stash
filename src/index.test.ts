@@ -4,9 +4,8 @@ import {
   addSerializers,
   clearSerializers,
   getStasher,
+  Serializer,
 } from "./index";
-import { Serializer } from "./types/Serializer";
-import { classSerializer } from "./classSerializer";
 
 describe("stash", () => {
   beforeEach(() => {
@@ -479,13 +478,13 @@ describe("identical objects", () => {
       }
     }
     const input = [new RegExPair(a, b), new RegExPair(a, c)];
-    addSerializers(
-      classSerializer(RegExPair, {
-        save: (x: RegExPair) => x.serialize(),
-        load: ([r1, r2]: [RegExp, RegExp]) => new RegExPair(r1, r2),
-        update: (obj: RegExPair, [r1, r2]: [RegExp, RegExp]) => obj.set(r1, r2),
-      }),
-    );
+    addSerializers({
+      key: "RegExPair",
+      test: (x) => x instanceof RegExPair,
+      save: (x: RegExPair) => x.serialize(),
+      load: ([r1, r2]: [RegExp, RegExp]) => new RegExPair(r1, r2),
+      update: (obj: RegExPair, [r1, r2]: [RegExp, RegExp]) => obj.set(r1, r2),
+    });
     const output = unstash(stash(input));
     expect(output[0].serialize()).toEqual(input[0].serialize());
     expect(output[1].serialize()).toEqual(input[1].serialize());
