@@ -6,11 +6,10 @@ import {
   addClass,
   clearSerializers,
   getStasher,
+  stashable,
 } from "./src";
 import { Agent as MI5Agent } from "./test/README.test.mi5";
 import { Agent as CIAAgent } from "./test/README.test.cia";
-
-import { stashable } from "./src/stashable";
 
 // IMPORTANT: this file should be named README-test.test.ts
 //   or anything that's not README.*

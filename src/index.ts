@@ -1,4 +1,5 @@
 export { getStasher } from "./stasher";
+export { stashable } from "./stashable";
 export { Serializer } from "./types/Serializer";
 
 import { getStasher } from "./stasher";
