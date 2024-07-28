@@ -1,19 +1,18 @@
+type PlainObject = Record<string | symbol, unknown>;
+
 // a regular old key-value pair object that isn't an instance of a class other than Object
-export function isPlainObject(
-  value: unknown,
-): value is Record<string | symbol, unknown> {
+export function isPlainObject(value: unknown): value is PlainObject {
   return value?.constructor === Object;
 }
 
 // a value that can be reliably serialized by JSON.stringify
 export function isVanilla(value: unknown) {
+  const type = typeof value;
   return (
-    value === undefined ||
-    value === null ||
-    typeof value === "string" ||
-    (typeof value === "number" &&
-      ![Infinity, -Infinity, NaN].includes(value)) ||
-    typeof value === "boolean" ||
+    // == null matches null and undefined
+    value == null ||
+    (/^string|boolean|number$/.test(type) &&
+      ![Infinity, -Infinity, NaN].includes(value as number)) ||
     Array.isArray(value) ||
     (isPlainObject(value) && !hasSymbolKeys(value))
   );
@@ -51,41 +50,38 @@ export function deepMap(
   fn: (v: unknown, path: string) => unknown,
   opts?: Partial<DeepMapOpts>,
 ) {
-  const { inPlace, depthFirst, avoidCircular } = {
-    ...DEFAULT_DEEP_MAP_OPTS,
-    ...opts,
-  };
+  const o = { ...DEFAULT_DEEP_MAP_OPTS, ...opts };
 
   const seen = new WeakSet();
   function recurse(node: unknown, path: string): unknown {
     // don't recurse infinitely on circular references
-    if (avoidCircular && (Array.isArray(node) || isPlainObject(node))) {
+    if (o.avoidCircular && (Array.isArray(node) || isPlainObject(node))) {
       if (seen.has(node)) return node;
       seen.add(node);
     }
 
     // breadth-first? then do callback function before recursing
-    if (!depthFirst) node = fn(node, path);
+    if (!o.depthFirst) node = fn(node, path);
 
     // recurse if node is an array or object
     if (Array.isArray(node)) {
-      const array = inPlace ? node : [...node];
+      const array = o.inPlace ? node : [...node];
       for (let i = 0; i < array.length; i++) {
-        array[i] = recurse(array[i], appendPath(path, i));
+        array[i] = recurse(array[i], path ? `${path}.${i}` : `${i}`);
       }
       node = array;
     }
     if (isPlainObject(node)) {
       // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
-      const obj = inPlace ? node : { ...node };
+      const obj = o.inPlace ? node : { ...node };
       for (const k in obj) {
-        obj[k] = recurse(obj[k], appendPath(path, k));
+        obj[k] = recurse(obj[k], path ? `${path}.${k}` : `${k}`);
       }
       node = obj;
     }
 
     // depth-first? then do callback function after recursing
-    if (depthFirst) node = fn(node, path);
+    if (o.depthFirst) node = fn(node, path);
 
     return node;
   }
@@ -93,12 +89,9 @@ export function deepMap(
   return (value: unknown) => recurse(value, "");
 }
 
+// works even on objects with a property "hasOwnProperty"
 export function hasOwnProperty(obj: object, key: string) {
-  return Object.prototype.hasOwnProperty.call(obj, key);
-}
-
-function appendPath(path: string, key: string | number) {
-  return path ? `${path}.${key}` : `${key}`;
+  return Object.hasOwnProperty.call(obj, key);
 }
 
 export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {

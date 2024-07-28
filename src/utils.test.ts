@@ -162,6 +162,19 @@ describe("Utils Module Tests", () => {
       const obj = { key: "value" };
       expect(hasOwnProperty(obj, "nonexistent")).toBe(false);
     });
+
+    it("should return false for inherited property", () => {
+      const parent = { key: "value" };
+      const child = Object.create(parent);
+      expect(hasOwnProperty(child, "key")).toBe;
+    });
+
+    it('should work with objects that have a "hasOwnProperty" property', () => {
+      const obj = { key: "value", hasOwnProperty: (x: any) => false };
+      expect(obj.hasOwnProperty("key")).toBe(false);
+      expect(hasOwnProperty(obj, "key")).toBe(true);
+      expect(hasOwnProperty(obj, "hasOwnProperty")).toBe(true);
+    });
   });
 
   describe("getOwnKeys", () => {
