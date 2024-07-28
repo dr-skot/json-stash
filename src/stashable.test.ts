@@ -95,14 +95,12 @@ describe("CountingGuy", () => {
 describe("stashable group", () => {
   it("does not get added to the global stasher", () => {
     const stashed = stash(new ScopedClass("Alice"));
-    console.log("stashed", stashed);
-    const unstashedGlobally = unstash(stash(new ScopedClass("Alice")));
+    const unstashedGlobally = unstash(stashed);
     expect(unstashedGlobally instanceof ScopedClass).toBe(false);
   });
   it("can be added to a stasher", () => {
     const stasher = getStasher();
-    console.log(...(stashable as any).group("Scoped"));
-    stasher.addClasses(...(stashable as any).group("Scoped"));
+    stasher.addClasses(...stashable.group("Scoped"));
     const unstashed = stasher.unstash(stasher.stash(new ScopedClass("Alice")));
     expect(unstashed instanceof ScopedClass).toBe(true);
   });

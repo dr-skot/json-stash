@@ -1,6 +1,5 @@
 import { stashable } from "../src/stashable";
 
-console.log("MI5AgentStashable");
 @stashable({ key: "MI5AgentStashable" })
 export class Agent {
   constructor(

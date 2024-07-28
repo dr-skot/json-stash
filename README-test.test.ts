@@ -120,7 +120,6 @@ describe("README", () => {
       '{"$type":"Map","data":[["friend",{"$ref":"$"}]]}',
     );
     const unstashedLoner = unstash(stash(loner));
-    console.log(unstashedLoner);
     expect(unstashedLoner.get("friend").get("friend")).toBe(unstashedLoner);
   });
 
