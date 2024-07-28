@@ -21,18 +21,12 @@ export function serialize(value: unknown, serializers: Serializer[]) {
 
   // if we found one, use it
   if (serializer) {
-    return {
-      $type: serializer.key,
-      data: serializer.save(value),
-    };
+    return { $type: serializer.key, data: serializer.save(value) };
   }
 
   // otherwise punt; value will just get JSON.stringified
   // if it's not vanilla, give a warning
-  if (!isVanilla(value)) {
-    console.warn(`json-stash: no serializer found for ${value}`);
-  }
-  return value;
+  return !isVanilla(value) ? warnNoSerializer(value) : value;
 }
 
 // the first pass of unstash, before refs are resolved
@@ -42,8 +36,7 @@ export function deserialize(spec: Deserializable, serializers: Serializer[]) {
   if (serializer) return serializer.load(spec.data as any);
 
   // otherwise punt
-  console.warn(`json-stash: no deserializer found for ${spec}`);
-  return spec;
+  return warnNoSerializer(spec);
 }
 
 // the second pass of unstash, after refs are resolved
@@ -54,16 +47,19 @@ export function reload(
 ) {
   // we'll find a matching serializer this time; second pass only happens if the first pass found one
   const serializer = serializers.find((s) => s.key === spec.$type);
-  if (!serializer) {
-    // should we throw?
-    console.warn(`json-stash: no deserializer found for ${spec}`);
-    return;
-  }
+  if (!serializer) return warnNoSerializer(spec);
 
   const data = spec.data;
 
   // value will be mutated in place
   if (serializer.update) serializer.update(value, data);
   else
-    throw new Error(`json-stash: No update method found for ${serializer.key}`);
+    throw new Error(
+      `json-stash: No update method found on ${serializer.key} serializer`,
+    );
+}
+
+function warnNoSerializer(value: unknown) {
+  console.warn(`json-stash: no serializer found for ${value}`);
+  return value;
 }

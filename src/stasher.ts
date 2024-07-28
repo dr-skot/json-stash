@@ -22,6 +22,8 @@ export function getStasher() {
       return unstash(json, combineSerializers(serializers));
     },
 
+    // TODO warn when serializers have the same key
+
     addSerializers(...serializers: Serializer[]) {
       addedSerializers.splice(0, 0, ...serializers);
     },

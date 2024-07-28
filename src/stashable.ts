@@ -18,15 +18,11 @@ interface StashableDecorator {
 // store groups of serializers
 const groups: Record<string, ClassSerializerSpec[]> = {};
 
-// "raw" because we'll have to rename it to cast as StashableDecorator before exporting
-function rawStashable({ group, ...opts }: StashableOpts = {}) {
-  return function (target: any) {
+export const stashable = (({ group, ...opts }: StashableOpts = {}) =>
+  (target: any) => {
     // add the serializer to the group, or to the global stasher if no group is specified
     if (group) groups[group] = [...(groups[group] || []), [target, opts]];
     else addSerializers(classSerializer(target, opts));
-  };
-}
+  }) as StashableDecorator;
 
-rawStashable.group = (groupName: string) => [...groups[groupName]] || [];
-
-export const stashable = rawStashable as StashableDecorator;
+stashable.group = (groupName: string) => [...groups[groupName]] || [];
