@@ -25,4 +25,4 @@ export const stashable = (({ group, ...opts }: StashableOpts = {}) =>
     else addSerializers(classSerializer(target, opts));
   }) as StashableDecorator;
 
-stashable.group = (groupName: string) => [...groups[groupName]] || [];
+stashable.group = (groupName: string) => [...(groups[groupName] || [])];
