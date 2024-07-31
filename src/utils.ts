@@ -18,12 +18,12 @@ export { keys, assign, fromEntries };
 
 // a value that can be reliably serialized by JSON.stringify
 export function isVanilla(value: unknown) {
-  const type = typeof value;
   return (
     // == null matches null and undefined
     value == null ||
-    (/^string|boolean|number$/.test(type) &&
-      ![Infinity, -Infinity, NaN].includes(value as number)) ||
+    // string bool or number but not Infinity or NaN
+    (/^(st|bo|n)/.test(typeof value) &&
+      ![1 / 0, -1 / 0, NaN].includes(value as number)) ||
     isArray(value) ||
     (isPlainObject(value) && !hasSymbolKeys(value))
   );
@@ -112,3 +112,7 @@ export function hasSymbolKeys(obj: object) {
 
 export const isFunction = (x: unknown): x is Function =>
   typeof x === "function";
+
+export function error(message: string) {
+  return new Error("json-stash: " + message);
+}

@@ -1,5 +1,5 @@
 import { Class } from "./types/Class";
-import { assign, isArray, isFunction } from "./utils";
+import { assign, error, isArray, isFunction } from "./utils";
 import { Serializer } from "./types/Serializer";
 
 export interface ClassSerializerOpts<Type, Data = any> {
@@ -43,7 +43,8 @@ export function classSerializer<
       ? (data: Data) => assign(new type(), data)
       : (data: Data) => {
           if (isArray(data)) return new type(...(data as unknown[]));
-          throw new Error(`no load method specified and data is not an array`);
+          // TODO support single arg constructor
+          throw error("No load method specified and data is not an array");
         },
     update = !opts.save
       ? (obj: Instance, data: Data) => assign(obj, data)
@@ -81,4 +82,4 @@ export function classSerializer<
 }
 
 const methodNotFound = (type: string, method: string, category: string) =>
-  new Error(`json-stash: ${category} method "${method}" not found on ${type}`);
+  error(`${category} method "${method}" not found on ${type}`);

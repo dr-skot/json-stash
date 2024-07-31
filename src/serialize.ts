@@ -1,4 +1,4 @@
-import { hasOwnProperty, isPlainObject, isVanilla } from "./utils";
+import { error, hasOwnProperty, isPlainObject, isVanilla } from "./utils";
 import { Serializer } from "./types/Serializer";
 
 // a stashed object that needs to be deserialized looks like this
@@ -53,13 +53,10 @@ export function reload(
 
   // value will be mutated in place
   if (serializer.update) serializer.update(value, data);
-  else
-    throw new Error(
-      `json-stash: No update method found on ${serializer.key} serializer`,
-    );
+  else throw error(`No update method found on ${serializer.key} serializer`);
 }
 
 function warnNoSerializer(value: unknown) {
-  console.warn(`json-stash: no serializer found for ${value}`);
+  console.warn(`json-stash: No serializer found for ${value}`);
   return value;
 }
