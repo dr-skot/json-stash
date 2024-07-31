@@ -1,7 +1,8 @@
 import { deepMap, isPlainObject, keys } from "./utils";
 
-// a data object that happens to have keys $ref, $type, or $esc
+// a data object that happens to have keys $ref or $type
 // needs to be escaped so stash doesn't mistakenly try to dereference or deserialize or unescape it
+
 const keyIsUnsafe = (key: string) => /^\$+(ref|type)$/.test(key);
 const keyIsEscaped = (key: string) => /^\$\$+(ref|type)$/.test(key);
 
