@@ -1,5 +1,5 @@
 import { Class } from "./types/Class";
-import { assign, error, isArray, isFunction } from "./utils";
+import { assign, error, isArray, isFunction, isString } from "./utils";
 import { Serializer } from "./types/Serializer";
 
 export interface ClassSerializerOpts<Type, Data = any> {
@@ -35,7 +35,7 @@ export function classSerializer<
   type: Class<Instance>,
   keyOrOpts: string | ClassSerializerOpts<Instance, Data> = {},
 ): Serializer<Instance, Data> {
-  const opts = typeof keyOrOpts === "string" ? { key: keyOrOpts } : keyOrOpts;
+  const opts = isString(keyOrOpts) ? { key: keyOrOpts } : keyOrOpts;
   const {
     key = type.name,
     save = (obj: Instance) => ({ ...obj }) as unknown as Data,
@@ -57,27 +57,24 @@ export function classSerializer<
   return {
     key,
     test: (obj: any) => obj instanceof type,
-    save:
-      typeof save === "string"
-        ? (obj: Instance): Data => {
-            if (isFunction(obj[save])) return obj[save](obj);
-            throw methodNotFound(type.name, save, "save");
-          }
-        : save,
-    load:
-      typeof load === "string"
-        ? (data: Data): Instance => {
-            if (isFunction(statics[load])) return statics[load](data);
-            throw methodNotFound(type.name, load, "load");
-          }
-        : load,
-    update:
-      typeof update === "string"
-        ? (obj: Instance, data: Data) => {
-            if (isFunction(obj[update])) obj[update](data);
-            else throw methodNotFound(type.name, update, "update");
-          }
-        : update,
+    save: isString(save)
+      ? (obj: Instance): Data => {
+          if (isFunction(obj[save])) return obj[save](obj);
+          throw methodNotFound(type.name, save, "save");
+        }
+      : save,
+    load: isString(load)
+      ? (data: Data): Instance => {
+          if (isFunction(statics[load])) return statics[load](data);
+          throw methodNotFound(type.name, load, "load");
+        }
+      : load,
+    update: isString(update)
+      ? (obj: Instance, data: Data) => {
+          if (isFunction(obj[update])) obj[update](data);
+          else throw methodNotFound(type.name, update, "update");
+        }
+      : update,
   };
 }
 

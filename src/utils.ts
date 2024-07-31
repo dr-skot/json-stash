@@ -116,3 +116,7 @@ export const isFunction = (x: unknown): x is Function =>
 export function error(message: string) {
   return new Error("json-stash: " + message);
 }
+
+export function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
