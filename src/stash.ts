@@ -22,7 +22,9 @@ export function stash(data: unknown, serializers: Serializer[]) {
 
   const encoded = deepMap(
     (value, path) => serialize(saveRefs(path, escape(value)), serializers),
-    { depthFirst: false, inPlace: false, avoidCircular: false },
+    false,
+    false,
+    false,
   )(root) as StashRoot;
 
   // unescape escaped properties
@@ -61,7 +63,9 @@ export function unstash(json: string, serializers: Serializer[]) {
       }
       return refs.registerValue(node, path);
     },
-    { depthFirst: true, inPlace: false, avoidCircular: false },
+    false,
+    true,
+    false,
   )(root) as StashRoot;
 
   // second pass: resolve refs, note which deserialized objects need unescaping

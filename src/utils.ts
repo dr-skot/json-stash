@@ -5,6 +5,17 @@ export function isPlainObject(value: unknown): value is PlainObject {
   return value?.constructor === Object;
 }
 
+export const { isArray } = Array;
+const {
+  getOwnPropertyNames,
+  getOwnPropertySymbols,
+  values,
+  keys,
+  assign,
+  fromEntries,
+} = Object;
+export { keys, assign, fromEntries };
+
 // a value that can be reliably serialized by JSON.stringify
 export function isVanilla(value: unknown) {
   const type = typeof value;
@@ -13,7 +24,7 @@ export function isVanilla(value: unknown) {
     value == null ||
     (/^string|boolean|number$/.test(type) &&
       ![Infinity, -Infinity, NaN].includes(value as number)) ||
-    Array.isArray(value) ||
+    isArray(value) ||
     (isPlainObject(value) && !hasSymbolKeys(value))
   );
 }
@@ -23,8 +34,8 @@ export function isVanilla(value: unknown) {
 export function deepForEach(fn: (v: unknown) => void) {
   function recurse(node: unknown): void {
     fn(node);
-    if (Array.isArray(node)) node.forEach(recurse);
-    if (isPlainObject(node)) Object.values(node).forEach(recurse);
+    if (isArray(node)) node.forEach(recurse);
+    if (isPlainObject(node)) values(node).forEach(recurse);
   }
 
   return recurse;
@@ -36,36 +47,30 @@ type DeepMapOpts = {
   avoidCircular: boolean;
 };
 
-const DEFAULT_DEEP_MAP_OPTS: DeepMapOpts = {
-  inPlace: true,
-  depthFirst: true,
-  avoidCircular: true,
-};
-
 // returns a copy, unless inPlace is true
 // depth-first traversal, unless depthFirst is false
 // avoids circular references, unless avoidCircular is false
 // NOTE: ignores symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
 export function deepMap(
   fn: (v: unknown, path: string) => unknown,
-  opts?: Partial<DeepMapOpts>,
+  inPlace = true,
+  depthFirst = true,
+  avoidCircular = true,
 ) {
-  const o = { ...DEFAULT_DEEP_MAP_OPTS, ...opts };
-
   const seen = new WeakSet();
   function recurse(node: unknown, path: string): unknown {
     // don't recurse infinitely on circular references
-    if (o.avoidCircular && (Array.isArray(node) || isPlainObject(node))) {
+    if (avoidCircular && (isArray(node) || isPlainObject(node))) {
       if (seen.has(node)) return node;
       seen.add(node);
     }
 
     // breadth-first? then do callback function before recursing
-    if (!o.depthFirst) node = fn(node, path);
+    if (!depthFirst) node = fn(node, path);
 
     // recurse if node is an array or object
-    if (Array.isArray(node)) {
-      const array = o.inPlace ? node : [...node];
+    if (isArray(node)) {
+      const array = inPlace ? node : [...node];
       for (let i = 0; i < array.length; i++) {
         array[i] = recurse(array[i], path ? `${path}.${i}` : `${i}`);
       }
@@ -73,7 +78,7 @@ export function deepMap(
     }
     if (isPlainObject(node)) {
       // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
-      const obj = o.inPlace ? node : { ...node };
+      const obj = inPlace ? node : { ...node };
       for (const k in obj) {
         obj[k] = recurse(obj[k], path ? `${path}.${k}` : `${k}`);
       }
@@ -81,7 +86,7 @@ export function deepMap(
     }
 
     // depth-first? then do callback function after recursing
-    if (o.depthFirst) node = fn(node, path);
+    if (depthFirst) node = fn(node, path);
 
     return node;
   }
@@ -96,13 +101,13 @@ export function hasOwnProperty(obj: object, key: string) {
 
 export function getOwnKeys<T extends Object>(obj: T): (keyof T)[] {
   return [
-    ...Object.getOwnPropertyNames(obj),
-    ...Object.getOwnPropertySymbols(obj),
+    ...getOwnPropertyNames(obj),
+    ...getOwnPropertySymbols(obj),
   ] as (keyof T)[];
 }
 
 export function hasSymbolKeys(obj: object) {
-  return Object.getOwnPropertySymbols(obj).length > 0;
+  return getOwnPropertySymbols(obj).length > 0;
 }
 
 export const isFunction = (x: unknown): x is Function =>

@@ -3,6 +3,7 @@ import { DEFAULT_SERIALIZERS } from "./serializers";
 import { Class } from "./types/Class";
 import { classSerializer, ClassSerializerOpts } from "./classSerializer";
 import { Serializer } from "./types/Serializer";
+import { isArray } from "./utils";
 
 // a stasher can `stash` and `unstash` objects, using the default serializers
 // plus any additional serializers added to with `addSerializers`
@@ -43,7 +44,7 @@ export function getStasher() {
     addClasses(...classes: AddClassParams[]) {
       methods.addSerializers(
         ...classes.map((c) =>
-          Array.isArray(c) ? classSerializer(c[0], c[1]) : classSerializer(c),
+          isArray(c) ? classSerializer(c[0], c[1]) : classSerializer(c),
         ),
       );
     },

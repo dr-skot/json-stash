@@ -1,5 +1,5 @@
 import { Class } from "./types/Class";
-import { isFunction } from "./utils";
+import { assign, isArray, isFunction } from "./utils";
 import { Serializer } from "./types/Serializer";
 
 export interface ClassSerializerOpts<Type, Data = any> {
@@ -40,13 +40,13 @@ export function classSerializer<
     key = type.name,
     save = (obj: Instance) => ({ ...obj }) as unknown as Data,
     load = !opts.save
-      ? (data: Data) => Object.assign(new type(), data)
+      ? (data: Data) => assign(new type(), data)
       : (data: Data) => {
-          if (Array.isArray(data)) return new type(...(data as unknown[]));
+          if (isArray(data)) return new type(...(data as unknown[]));
           throw new Error(`no load method specified and data is not an array`);
         },
     update = !opts.save
-      ? (obj: Instance, data: Data) => Object.assign(obj, data)
+      ? (obj: Instance, data: Data) => assign(obj, data)
       : undefined,
   } = opts;
 

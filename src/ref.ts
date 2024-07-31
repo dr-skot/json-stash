@@ -61,7 +61,9 @@ export function getRefResolver(root: StashRoot) {
 
   const resolve = deepMap(
     (node) => (isRef(node) ? refs.get(node.$ref) : node),
-    { depthFirst: true, inPlace: true, avoidCircular: false },
+    true,
+    true,
+    false,
   );
 
   return { registerValue, resolve };

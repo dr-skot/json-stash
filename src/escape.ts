@@ -1,4 +1,4 @@
-import { deepMap, isPlainObject } from "./utils";
+import { deepMap, isPlainObject, keys } from "./utils";
 
 // a data object that happens to have keys $ref, $type, or $esc
 // needs to be escaped so stash doesn't mistakenly try to dereference or deserialize or unescape it
@@ -6,11 +6,10 @@ const keyIsUnsafe = (key: string) => /^\$+(ref|type)$/.test(key);
 const keyIsEscaped = (key: string) => /^\$\$+(ref|type)$/.test(key);
 
 // any object with an $esc property will return false when passed to isRef() or isDeserializable()
-export const isEscaped = (value: object) =>
-  Object.keys(value).some(keyIsEscaped);
+export const isEscaped = (value: object) => keys(value).some(keyIsEscaped);
 
 function escapeObject(value: object) {
-  Object.keys(value)
+  keys(value)
     .sort()
     .filter(keyIsUnsafe)
     .forEach((key) => {
@@ -25,7 +24,7 @@ function escapeObject(value: object) {
 function unescapeObject(value: unknown) {
   if (!isPlainObject(value)) return value;
 
-  Object.keys(value)
+  keys(value)
     .sort()
     .reverse()
     .forEach((key) => {
@@ -44,7 +43,7 @@ export function getObjectEscaper() {
   const cache = new Set();
   function escape(value: unknown) {
     if (!isPlainObject(value)) return value;
-    if (!Object.keys(value).some(keyIsUnsafe)) return value;
+    if (!keys(value).some(keyIsUnsafe)) return value;
     if (cache.has(value)) return value;
     cache.add(value);
     return escapeObject(value);
@@ -59,7 +58,9 @@ export function getObjectEscaper() {
         }
         return node;
       },
-      { depthFirst: false, inPlace: true, avoidCircular: true },
+      true,
+      false,
+      true,
     )(value);
     return result;
   }

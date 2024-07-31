@@ -1,4 +1,10 @@
-import { getOwnKeys, hasSymbolKeys, isPlainObject } from "./utils";
+import {
+  assign,
+  fromEntries,
+  getOwnKeys,
+  hasSymbolKeys,
+  isPlainObject,
+} from "./utils";
 import { classSerializer } from "./classSerializer";
 import { Serializer } from "./types/Serializer";
 
@@ -94,8 +100,8 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
     test: (obj) => isPlainObject(obj) && hasSymbolKeys(obj),
     save: (obj) => getOwnKeys(obj).map((key) => [key, obj[key]]),
     // strangely: Object.entries ignores symbol keys, but Object.fromEntries doesn't
-    load: (data) => Object.assign({}, Object.fromEntries(data)),
-    update: (obj, data) => Object.assign(obj, Object.fromEntries(data)),
+    load: (data) => assign({}, fromEntries(data)),
+    update: (obj, data) => assign(obj, fromEntries(data)),
   } as Serializer<Record<PropertyKey, unknown>, [PropertyKey, unknown][]>,
 
   classSerializer(Map, {
