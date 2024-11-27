@@ -531,7 +531,7 @@ describe("identical objects", () => {
 
     addSerializers({
       key: "Queue",
-      test: (obj) => (obj as Queue).isQueue,
+      test: (obj) => (obj as Queue)?.isQueue,
       save: (queue: Queue) => queue.save(),
       load: (data: any[]) => getQueue(data),
       update: (existing: Queue, data: any[]) => existing.set(data),
