@@ -150,6 +150,21 @@ describe("Utils Module Tests", () => {
         b: { c: "C!", e: { f: "F!", g: "G!" } },
       });
     });
+    // v4.0.4 had a bug where the visited set was reused on subsequent calls
+    it("resets the visited set for each call", () => {
+      const dup = [1, 2, 3];
+      const obj = { a: dup, b: dup };
+      let paths: string[] = [];
+      const fn = jest.fn((_: unknown, path: string) => paths.push(path));
+      const map = deepMap(fn, false, true, true);
+      map(obj);
+      expect(paths).toEqual(["a.0", "a.1", "a.2", "a", ""]);
+      expect(fn).toHaveBeenCalledTimes(5);
+      paths = [];
+      map(obj);
+      expect(paths).toEqual(["a.0", "a.1", "a.2", "a", ""]);
+      expect(fn).toHaveBeenCalledTimes(10);
+    });
   });
 
   describe("hasOwnProperty", () => {

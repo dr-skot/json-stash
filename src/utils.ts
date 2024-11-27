@@ -57,41 +57,44 @@ export function deepMap(
   depthFirst = true,
   avoidCircular = true,
 ) {
-  const seen = new WeakSet();
-  function recurse(node: unknown, path: string): unknown {
-    // don't recurse infinitely on circular references
-    if (avoidCircular && (isArray(node) || isPlainObject(node))) {
-      if (seen.has(node)) return node;
-      seen.add(node);
-    }
+  return function (value: unknown) {
+    const visited = new WeakSet();
 
-    // breadth-first? then do callback function before recursing
-    if (!depthFirst) node = fn(node, path);
-
-    // recurse if node is an array or object
-    if (isArray(node)) {
-      const array = inPlace ? node : [...node];
-      for (let i = 0; i < array.length; i++) {
-        array[i] = recurse(array[i], path ? `${path}.${i}` : `${i}`);
+    function recurse(node: unknown, path: string): unknown {
+      // don't recurse infinitely on circular references
+      if (avoidCircular && (isArray(node) || isPlainObject(node))) {
+        if (visited.has(node)) return node;
+        visited.add(node);
       }
-      node = array;
-    }
-    if (isPlainObject(node)) {
-      // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
-      const obj = inPlace ? node : { ...node };
-      for (const k in obj) {
-        obj[k] = recurse(obj[k], path ? `${path}.${k}` : `${k}`);
+
+      // breadth-first? then do callback function before recursing
+      if (!depthFirst) node = fn(node, path);
+
+      // recurse if node is an array or object
+      if (isArray(node)) {
+        const array = inPlace ? node : [...node];
+        for (let i = 0; i < array.length; i++) {
+          array[i] = recurse(array[i], path ? `${path}.${i}` : `${i}`);
+        }
+        node = array;
       }
-      node = obj;
+      if (isPlainObject(node)) {
+        // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
+        const obj = inPlace ? node : { ...node };
+        for (const k in obj) {
+          obj[k] = recurse(obj[k], path ? `${path}.${k}` : `${k}`);
+        }
+        node = obj;
+      }
+
+      // depth-first? then do callback function after recursing
+      if (depthFirst) node = fn(node, path);
+
+      return node;
     }
 
-    // depth-first? then do callback function after recursing
-    if (depthFirst) node = fn(node, path);
-
-    return node;
-  }
-
-  return (value: unknown) => recurse(value, "");
+    return recurse(value, "");
+  };
 }
 
 // works even on objects with a property "hasOwnProperty"
