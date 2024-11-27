@@ -6,6 +6,7 @@ import {
   getStasher,
   Serializer,
 } from "./index";
+import { deepMap } from "./utils";
 
 describe("stash", () => {
   beforeEach(() => {
@@ -545,6 +546,33 @@ describe("identical objects", () => {
 
     const unstashed = unstash(stash(q));
     expect(unstashed.dequeue()).toBe(unstashed);
+  });
+
+  it('can handle duplicate references whose paths involve keys that contain "."', () => {
+    const obj = { "b.c": { a: {} } };
+    obj["b.c"].a = obj["b.c"];
+    const stashed = stash(obj);
+    const unstashed = unstash(stashed);
+    expect(unstashed["b.c"].a).toBe(unstashed["b.c"]);
+  });
+
+  it('does not create collisions with keys that contain the escape code for "."', () => {
+    const obj = { "b.c": { a: {} }, "b\\.c": "interference" };
+    obj["b.c"].a = obj["b.c"];
+    const stashed = stash(obj);
+    const unstashed = unstash(stashed);
+    expect(unstashed["b.c"].a).toBe(unstashed["b.c"]);
+    expect(unstashed["b\\.c"]).toBe("interference");
+  });
+
+  it("can handle duplicate references whose paths involve symbol keys", () => {
+    const sym1 = Symbol("b");
+    const obj = { [sym1]: { a: {} } };
+    obj[sym1].a = obj[sym1];
+    const stashed = stash(obj);
+    const unstashed = unstash(stashed);
+    const sym2 = Object.getOwnPropertySymbols(unstashed)[0];
+    expect(unstashed[sym2].a).toBe(unstashed[sym2]);
   });
 });
 

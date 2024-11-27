@@ -41,12 +41,6 @@ export function deepForEach(fn: (v: unknown) => void) {
   return recurse;
 }
 
-type DeepMapOpts = {
-  inPlace: boolean;
-  depthFirst: boolean;
-  avoidCircular: boolean;
-};
-
 // returns a copy, unless inPlace is true
 // depth-first traversal, unless depthFirst is false
 // avoids circular references, unless avoidCircular is false
@@ -82,7 +76,9 @@ export function deepMap(
         // we ignore symbol keys; not an issue for json-stash because symbol-keyed objects are converted to arrays
         const obj = inPlace ? node : { ...node };
         for (const k in obj) {
-          obj[k] = recurse(obj[k], path ? `${path}.${k}` : `${k}`);
+          // escape periods in key names (and escape the escape character)
+          const key = k.replace(/[\\.]/g, "\\$&");
+          obj[k] = recurse(obj[k], path ? `${path}.${key}` : key);
         }
         node = obj;
       }
