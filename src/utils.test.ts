@@ -6,6 +6,7 @@ import {
   hasOwnProperty,
   getOwnKeys,
   hasSymbolKeys,
+  isNoPrototype,
 } from "./utils"; // Update the import path based on your project structure
 
 describe("Utils Module Tests", () => {
@@ -19,6 +20,20 @@ describe("Utils Module Tests", () => {
       expect(isPlainObject(null)).toBe(false);
       expect(isPlainObject(undefined)).toBe(false);
       expect(isPlainObject(42)).toBe(false);
+    });
+
+    it("should return false for Object.create(null)", () => {
+      expect(isPlainObject(Object.create(null))).toBe(false);
+    });
+  });
+
+  describe("isNoPrototype", () => {
+    it("should return false for plain objects", () => {
+      expect(isNoPrototype({})).toBe(false);
+    });
+
+    it("should return true for objects with no prototype", () => {
+      expect(isNoPrototype(Object.create(null))).toBe(true);
     });
   });
 

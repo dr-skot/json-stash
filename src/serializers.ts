@@ -3,6 +3,7 @@ import {
   fromEntries,
   getOwnKeys,
   hasSymbolKeys,
+  isNoPrototype,
   isPlainObject,
 } from "./utils";
 import { classSerializer } from "./classSerializer";
@@ -93,6 +94,15 @@ export const DEFAULT_SERIALIZERS: Serializer[] = [
         { name: string; message: string; stack?: string; cause: unknown }
       >,
   ),
+
+  // Object.create(null) is a common pattern for creating plain objects without prototype
+  {
+    key: "Object.create(null)",
+    test: (obj) => isNoPrototype(obj),
+    save: (obj) => getOwnKeys(obj).map((key) => [key, obj[key]]),
+    load: (data) => assign(Object.create(null), fromEntries(data)),
+    update: (obj, data) => assign(obj, fromEntries(data)),
+  } as Serializer<Record<PropertyKey, unknown>, [PropertyKey, unknown][]>,
 
   // plain object with symbol keys
   {

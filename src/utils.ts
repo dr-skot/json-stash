@@ -2,7 +2,14 @@ type PlainObject = Record<string | symbol, unknown>;
 
 // a regular old key-value pair object that isn't an instance of a class other than Object
 export function isPlainObject(value: unknown): value is PlainObject {
-  return value?.constructor === Object;
+  // reject non-objects
+  if (!value || typeof value !== "object") return false;
+  return Object.getPrototypeOf(value) === Object.prototype;
+}
+
+export function isNoPrototype(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+  return Object.getPrototypeOf(value) === null;
 }
 
 export const { isArray } = Array;

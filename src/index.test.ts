@@ -463,21 +463,26 @@ describe("identical objects", () => {
     const a = /a/;
     const b = /b/;
     const c = /c/;
+
     class RegExPair {
       #regex1: RegExp;
       #regex2: RegExp;
+
       constructor(regex1: RegExp, regex2: RegExp) {
         this.#regex1 = regex1;
         this.#regex2 = regex2;
       }
+
       serialize(): [RegExp, RegExp] {
         return [this.#regex1, this.#regex2];
       }
+
       set(regex1: RegExp, regex2: RegExp) {
         this.#regex1 = regex1;
         this.#regex2 = regex2;
       }
     }
+
     const input = [new RegExPair(a, b), new RegExPair(a, c)];
     addSerializers({
       key: "RegExPair",
@@ -527,6 +532,7 @@ describe("identical objects", () => {
         set: (newItems: any[]) => (items = newItems),
       };
     }
+
     type Queue = ReturnType<typeof getQueue>;
 
     addSerializers({
@@ -573,6 +579,29 @@ describe("identical objects", () => {
     const unstashed = unstash(stashed);
     const sym2 = Object.getOwnPropertySymbols(unstashed)[0];
     expect(unstashed[sym2].a).toBe(unstashed[sym2]);
+  });
+
+  it("handles prototype-less objects created with Object.create(null)", () => {
+    const obj = Object.create(null);
+    obj.a = obj;
+    const stashed = stash(obj);
+    const unstashed = unstash(stashed);
+    expect(unstashed.a).toBe(unstashed);
+    expect(Object.getPrototypeOf(obj)).toBeNull();
+    expect(Object.getPrototypeOf({})).not.toBeNull();
+    expect(Object.getPrototypeOf(unstashed)).toBeNull();
+  });
+
+  it("handles prototype-less objects with symbol keys", () => {
+    const input = Object.create(null);
+    input[Symbol.for("a")] = 1;
+    input[Symbol.for("b")] = 2;
+    const output = unstash(stash(input));
+    expect(output).toEqual(input);
+    expect(output[Symbol.for("a")]).toBe(1);
+    expect(output[Symbol.for("b")]).toBe(2);
+    expect(Object.getPrototypeOf(input)).toBeNull();
+    expect(Object.getPrototypeOf(output)).toBeNull();
   });
 });
 

@@ -57,6 +57,12 @@ export function reload(
 }
 
 function warnNoSerializer(value: unknown) {
-  console.warn(`json-stash: No serializer found for ${value}`);
+  try {
+    console.warn(`json-stash: No serializer found for ${value}`);
+  } catch (e) {
+    console.warn(
+      `json-stash: No serializer found for an object with no toString() method`,
+    );
+  }
   return value;
 }
