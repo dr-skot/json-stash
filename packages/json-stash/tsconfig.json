@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "strict": true,
+        "declaration": true,
+        "outDir": "./dist",
+        "esModuleInterop": true,
+        "lib": [
+            "es6",
+            "es2021.promise"
+        ]
+    },
+    "files": [
+        "src/index.ts"
+    ],
+    "exclude": [
+        "dist",
+        "node_modules"
+    ]
+}
